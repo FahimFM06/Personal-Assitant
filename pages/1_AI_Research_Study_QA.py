@@ -1,54 +1,44 @@
 import streamlit as st
 from groq import Groq
-from huggingface_hub import InferenceClient
 
-# --------------------------------------------------
+# -----------------------------------
 # Page config
-# --------------------------------------------------
+# -----------------------------------
 st.set_page_config(
     page_title="AI Research Study QA",
     page_icon="💬",
     layout="wide"
 )
 
-# --------------------------------------------------
-# Read secrets automatically
-# --------------------------------------------------
+# -----------------------------------
+# Read Groq key automatically
+# -----------------------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
-HF_TOKEN = st.secrets.get("HF_TOKEN", "")
 
-# --------------------------------------------------
-# Models
-# Groq is the main option
-# HF uses 2 inference-provider models
-# --------------------------------------------------
+# -----------------------------------
+# Groq models only
+# -----------------------------------
 GROQ_MODELS = {
     "Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Llama 3.1 8B": "llama-3.1-8b-instant",
+    "GPT-OSS 120B": "openai/gpt-oss-120b",
+    "GPT-OSS 20B": "openai/gpt-oss-20b",
 }
 
-HF_MODELS = {
-    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct",
-    "Phi 3.5 Mini Instruct": "microsoft/Phi-3.5-mini-instruct",
-}
-
-# --------------------------------------------------
+# -----------------------------------
 # Session state
-# --------------------------------------------------
+# -----------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Hello, how can I help you today?"}
     ]
 
-if "provider" not in st.session_state:
-    st.session_state.provider = "Groq"
-
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = GROQ_MODELS["Llama 3.3 70B"]
 
-# --------------------------------------------------
+# -----------------------------------
 # Clean UI
-# --------------------------------------------------
+# -----------------------------------
 st.markdown("""
 <style>
 .main {
@@ -97,12 +87,12 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------
+# -----------------------------------
 # Helper functions
-# --------------------------------------------------
+# -----------------------------------
 def ask_groq(messages, model_name):
     """
-    Send chat history to Groq.
+    Send chat history to Groq and get the answer.
     """
     client = Groq(api_key=GROQ_API_KEY)
 
@@ -111,7 +101,8 @@ def ask_groq(messages, model_name):
             "role": "system",
             "content": (
                 "You are an AI Research and Study Assistant. "
-                "Answer clearly, accurately, and in a student-friendly way."
+                "Answer clearly, accurately, and in a student-friendly way. "
+                "If needed, explain step by step."
             )
         }
     ] + messages
@@ -126,37 +117,6 @@ def ask_groq(messages, model_name):
     return response.choices[0].message.content.strip()
 
 
-def ask_huggingface(messages, model_name):
-    """
-    Use Hugging Face Inference Providers.
-    This requires an HF token with:
-    Make calls to Inference Providers
-    """
-    client = InferenceClient(
-        provider="hf-inference",
-        api_key=HF_TOKEN
-    )
-
-    api_messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are an AI Research and Study Assistant. "
-                "Answer clearly, accurately, and in a student-friendly way."
-            )
-        }
-    ] + messages
-
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=api_messages,
-        temperature=0.3,
-        max_tokens=500
-    )
-
-    return response.choices[0].message.content.strip()
-
-
 def reset_chat():
     st.session_state.messages = [
         {"role": "assistant", "content": "Hello, how can I help you today?"}
@@ -164,6 +124,9 @@ def reset_chat():
 
 
 def delete_last_turn():
+    """
+    Remove the last assistant reply and the user message before it.
+    """
     msgs = st.session_state.messages
     if len(msgs) <= 1:
         return
@@ -180,14 +143,14 @@ def export_chat():
         lines.append(f"{speaker}: {msg['content']}")
     return "\\n\\n".join(lines)
 
-# --------------------------------------------------
+# -----------------------------------
 # Layout
-# --------------------------------------------------
+# -----------------------------------
 left_col, right_col = st.columns([4.6, 1.4])
 
-# --------------------------------------------------
+# -----------------------------------
 # Left side: chat
-# --------------------------------------------------
+# -----------------------------------
 with left_col:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
@@ -226,19 +189,12 @@ with left_col:
 
         try:
             with st.spinner("Thinking..."):
-                provider = st.session_state.provider
                 selected_model = st.session_state.selected_model
 
-                if provider == "Groq":
-                    if not GROQ_API_KEY:
-                        reply = "GROQ_API_KEY is missing in Streamlit secrets."
-                    else:
-                        reply = ask_groq(st.session_state.messages, selected_model)
+                if not GROQ_API_KEY:
+                    reply = "GROQ_API_KEY is missing in Streamlit secrets."
                 else:
-                    if not HF_TOKEN:
-                        reply = "HF_TOKEN is missing in Streamlit secrets."
-                    else:
-                        reply = ask_huggingface(st.session_state.messages, selected_model)
+                    reply = ask_groq(st.session_state.messages, selected_model)
 
         except Exception as e:
             reply = f"Something went wrong:\\n\\n{str(e)}"
@@ -246,37 +202,21 @@ with left_col:
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
 
-# --------------------------------------------------
+# -----------------------------------
 # Right side: model panel
-# --------------------------------------------------
+# -----------------------------------
 with right_col:
     st.markdown('<div class="right-panel">', unsafe_allow_html=True)
     st.markdown('<div class="right-title">Select Model</div>', unsafe_allow_html=True)
 
-    provider = st.radio(
-        "Provider",
-        ["Groq", "HuggingFace"],
-        index=0 if st.session_state.provider == "Groq" else 1,
+    selected_label = st.selectbox(
+        "Groq model",
+        list(GROQ_MODELS.keys()),
         label_visibility="collapsed"
     )
-    st.session_state.provider = provider
+    st.session_state.selected_model = GROQ_MODELS[selected_label]
 
-    st.caption("Choose model")
-
-    if provider == "Groq":
-        selected_label = st.selectbox(
-            "Groq model",
-            list(GROQ_MODELS.keys()),
-            label_visibility="collapsed"
-        )
-        st.session_state.selected_model = GROQ_MODELS[selected_label]
-    else:
-        selected_label = st.selectbox(
-            "HF model",
-            list(HF_MODELS.keys()),
-            label_visibility="collapsed"
-        )
-        st.session_state.selected_model = HF_MODELS[selected_label]
+    st.caption("Groq models only")
 
     st.markdown("---")
 
