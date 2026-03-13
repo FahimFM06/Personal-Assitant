@@ -1,40 +1,40 @@
-import json
 import streamlit as st
-import requests
 from groq import Groq
+from huggingface_hub import InferenceClient
 
-# ---------------------------------------------------
-# Page setup
-# ---------------------------------------------------
+# -----------------------------------
+# Page config
+# -----------------------------------
 st.set_page_config(
     page_title="AI Research Study QA",
     page_icon="💬",
     layout="wide"
 )
 
-# ---------------------------------------------------
-# Read API keys automatically from Streamlit secrets
-# ---------------------------------------------------
+# -----------------------------------
+# Read keys automatically from secrets
+# -----------------------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
 HF_TOKEN = st.secrets.get("HF_TOKEN", "")
 
-# ---------------------------------------------------
-# Model lists
-# Only 2 free Hugging Face models as requested
-# ---------------------------------------------------
+# -----------------------------------
+# Models
+# Groq = main reliable models
+# HF = only 2 smaller free models
+# -----------------------------------
 GROQ_MODELS = {
     "Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Llama 3.1 8B": "llama-3.1-8b-instant",
 }
 
 HF_MODELS = {
-    "FLAN-T5 Base": "google/flan-t5-base",
-    "FLAN-T5 Large": "google/flan-t5-large",
+    "GPT-2": "openai-community/gpt2",
+    "DistilGPT-2": "distilgpt2",
 }
 
-# ---------------------------------------------------
+# -----------------------------------
 # Session state
-# ---------------------------------------------------
+# -----------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Hello, how can I help you today?"}
@@ -46,61 +46,44 @@ if "provider" not in st.session_state:
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = GROQ_MODELS["Llama 3.3 70B"]
 
-# ---------------------------------------------------
-# Clean CSS
-# Right-side model panel like your sketch
-# ---------------------------------------------------
+# -----------------------------------
+# Simple clean style
+# -----------------------------------
 st.markdown("""
 <style>
 .main {
-    background: #0b0b0f;
+    background: #f7f7f8;
 }
 .block-container {
+    max-width: 1400px;
     padding-top: 1.2rem;
     padding-bottom: 1.5rem;
-    max-width: 1400px;
 }
-.title-text {
+.page-title {
     font-size: 42px;
     font-weight: 800;
-    color: white;
-    margin-bottom: 6px;
+    color: #111827;
+    margin-bottom: 4px;
 }
-.sub-text {
-    color: #cfcfcf;
+.page-sub {
+    color: #6b7280;
     font-size: 16px;
     margin-bottom: 18px;
 }
-.chat-shell {
-    background: #111218;
-    border: 1px solid #262835;
-    border-radius: 24px;
-    padding: 20px;
-    min-height: 600px;
-}
-.model-shell {
-    background: #111218;
-    border: 1px solid #262835;
-    border-radius: 22px;
+.right-panel {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
     padding: 18px;
 }
 .right-title {
-    color: white;
     font-size: 22px;
     font-weight: 700;
-    margin-bottom: 14px;
+    color: #111827;
+    margin-bottom: 12px;
 }
-.section-label {
-    color: #d9d9d9;
-    font-size: 14px;
-    margin-top: 8px;
-    margin-bottom: 6px;
-}
-.stChatMessage {
-    border-radius: 16px;
-}
-div[data-testid="stChatMessageContent"] {
-    border-radius: 16px;
+.chat-tools {
+    margin-bottom: 10px;
 }
 div.stButton > button {
     width: 100%;
@@ -112,45 +95,36 @@ div[data-baseweb="select"] > div {
     border-radius: 12px !important;
 }
 hr {
-    border-color: #262835;
+    border-color: #e5e7eb;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------
+# -----------------------------------
 # Helper functions
-# ---------------------------------------------------
-def format_hf_prompt(messages):
+# -----------------------------------
+def build_hf_prompt(messages):
     """
-    Convert chat history into a single text prompt for FLAN-T5.
-    This works better because FLAN models are instruction-following models,
-    not true chat-completion models.
+    GPT-2 style models are not chat models.
+    So we convert chat history into one plain text prompt.
     """
-    system_part = (
-        "You are an AI Research and Study Assistant. "
-        "Answer clearly, accurately, and in a student-friendly way. "
-        "Keep the answer focused and helpful.\n\n"
+    intro = (
+        "You are a helpful AI Research and Study Assistant. "
+        "Answer clearly, simply, and in a student-friendly way.\n\n"
     )
 
-    history_text = ""
-    for msg in messages[:-1]:
+    conversation = ""
+    for msg in messages:
         role = "User" if msg["role"] == "user" else "Assistant"
-        history_text += f"{role}: {msg['content']}\n"
+        conversation += f"{role}: {msg['content']}\n"
 
-    latest_user = messages[-1]["content"]
-
-    final_prompt = (
-        system_part
-        + history_text
-        + f"User: {latest_user}\n"
-        + "Assistant:"
-    )
-    return final_prompt
+    conversation += "Assistant:"
+    return intro + conversation
 
 
 def ask_groq(messages, model_name):
     """
-    Send full chat history to Groq.
+    Send messages to Groq chat model.
     """
     client = Groq(api_key=GROQ_API_KEY)
 
@@ -160,7 +134,7 @@ def ask_groq(messages, model_name):
             "content": (
                 "You are an AI Research and Study Assistant. "
                 "Answer clearly, accurately, and in a student-friendly way."
-            ),
+            )
         }
     ] + messages
 
@@ -168,7 +142,7 @@ def ask_groq(messages, model_name):
         model=model_name,
         messages=api_messages,
         temperature=0.3,
-        max_tokens=700,
+        max_tokens=700
     )
 
     return response.choices[0].message.content.strip()
@@ -176,46 +150,25 @@ def ask_groq(messages, model_name):
 
 def ask_huggingface(messages, model_name):
     """
-    Call Hugging Face free serverless Inference API.
-    We use wait_for_model=True so the request waits during cold start.
+    Use Hugging Face InferenceClient with provider='hf-inference'.
+    This is the correct modern serverless route.
     """
-    prompt = format_hf_prompt(messages)
+    client = InferenceClient(
+        provider="hf-inference",
+        api_key=HF_TOKEN,
+    )
 
-    api_url = f"https://api-inference.huggingface.co/models/{model_name}"
-    headers = {
-        "Authorization": f"Bearer {HF_TOKEN}"
-    }
+    prompt = build_hf_prompt(messages)
 
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 220,
-            "return_full_text": False,
-            "temperature": 0.3,
-        },
-        "options": {
-            "wait_for_model": True,
-            "use_cache": False
-        }
-    }
+    result = client.text_generation(
+        prompt,
+        model=model_name,
+        max_new_tokens=180,
+        temperature=0.3,
+        return_full_text=False
+    )
 
-    response = requests.post(api_url, headers=headers, json=payload, timeout=120)
-
-    # Helpful error handling
-    if response.status_code != 200:
-        raise Exception(f"Hugging Face error {response.status_code}: {response.text}")
-
-    result = response.json()
-
-    # Common successful response format
-    if isinstance(result, list) and len(result) > 0 and "generated_text" in result[0]:
-        return result[0]["generated_text"].strip()
-
-    # Some models may return plain dict errors
-    if isinstance(result, dict) and "error" in result:
-        raise Exception(result["error"])
-
-    raise Exception(f"Unexpected Hugging Face response: {result}")
+    return result.strip()
 
 
 def reset_chat():
@@ -226,69 +179,63 @@ def reset_chat():
 
 def delete_last_turn():
     """
-    Remove the last assistant+user pair if available.
+    Remove last assistant reply and the user message before it.
     """
     msgs = st.session_state.messages
 
-    # Keep at least the welcome message
     if len(msgs) <= 1:
         return
 
-    # Remove last message
     msgs.pop()
 
-    # If previous message is user, remove that too
     if len(msgs) > 1 and msgs[-1]["role"] == "user":
         msgs.pop()
 
 
-def export_chat_text():
-    """
-    Turn chat history into downloadable text.
-    """
+def export_chat():
     lines = []
     for msg in st.session_state.messages:
-        role = "You" if msg["role"] == "user" else "Assistant"
-        lines.append(f"{role}: {msg['content']}")
+        speaker = "You" if msg["role"] == "user" else "Assistant"
+        lines.append(f"{speaker}: {msg['content']}")
     return "\n\n".join(lines)
 
-# ---------------------------------------------------
-# Main layout
-# ---------------------------------------------------
-chat_col, model_col = st.columns([4.8, 1.2])
+# -----------------------------------
+# Layout
+# -----------------------------------
+left_col, right_col = st.columns([4.6, 1.4])
 
-# ---------------------------------------------------
-# Left side: chat area
-# ---------------------------------------------------
-with chat_col:
-    st.markdown('<div class="title-text">Chat</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-text">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
+# -----------------------------------
+# Left side: chat
+# -----------------------------------
+with left_col:
+    st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
 
-    action_col1, action_col2, action_col3 = st.columns([1, 1, 1.2])
-    with action_col1:
+    c1, c2, c3 = st.columns([1, 1, 1.1])
+    with c1:
         if st.button("🆕 New chat"):
             reset_chat()
             st.rerun()
-    with action_col2:
+
+    with c2:
         if st.button("🗑 Delete last"):
             delete_last_turn()
             st.rerun()
-    with action_col3:
+
+    with c3:
         st.download_button(
             "⬇ Export chat",
-            data=export_chat_text(),
+            data=export_chat(),
             file_name="chat_history.txt",
             mime="text/plain"
         )
 
-    st.markdown('<div class="chat-shell">', unsafe_allow_html=True)
+    st.markdown("")
 
     for msg in st.session_state.messages:
         avatar = "👤" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     user_prompt = st.chat_input("Type your question...")
 
@@ -318,11 +265,11 @@ with chat_col:
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
 
-# ---------------------------------------------------
-# Right side: model selection panel
-# ---------------------------------------------------
-with model_col:
-    st.markdown('<div class="model-shell">', unsafe_allow_html=True)
+# -----------------------------------
+# Right side: model panel
+# -----------------------------------
+with right_col:
+    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
     st.markdown('<div class="right-title">Select Model</div>', unsafe_allow_html=True)
 
     provider = st.radio(
@@ -333,30 +280,22 @@ with model_col:
     )
     st.session_state.provider = provider
 
-    st.markdown('<div class="section-label">Choose model</div>', unsafe_allow_html=True)
+    st.caption("Choose model")
 
     if provider == "Groq":
-        model_label = st.selectbox(
+        selected_label = st.selectbox(
             "Groq model",
             list(GROQ_MODELS.keys()),
             label_visibility="collapsed"
         )
-        st.session_state.selected_model = GROQ_MODELS[model_label]
-        st.caption("Best for fast and stable chat.")
+        st.session_state.selected_model = GROQ_MODELS[selected_label]
     else:
-        model_label = st.selectbox(
+        selected_label = st.selectbox(
             "HF model",
             list(HF_MODELS.keys()),
             label_visibility="collapsed"
         )
-        st.session_state.selected_model = HF_MODELS[model_label]
-        st.caption("Free serverless models. They may cold-start.")
-
-    st.markdown("---")
-
-    st.markdown("**Active key status**")
-    st.write(f"Groq: {'✅ Found' if GROQ_API_KEY else '❌ Missing'}")
-    st.write(f"HF: {'✅ Found' if HF_TOKEN else '❌ Missing'}")
+        st.session_state.selected_model = HF_MODELS[selected_label]
 
     st.markdown("---")
 
