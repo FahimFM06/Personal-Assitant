@@ -2,82 +2,83 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
-# -----------------------------
-# Page style
-# -----------------------------
+# --------------------------
+# Custom dashboard style
+# --------------------------
 st.markdown("""
 <style>
+
 .main {
-    background: linear-gradient(135deg, #04151f, #12061d);
+    background: linear-gradient(135deg,#04151f,#12061d);
 }
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
-.title-text {
-    font-size: 42px;
-    font-weight: 800;
-    color: white;
-    text-align: center;
-    margin-bottom: 8px;
-}
-.sub-text {
-    font-size: 18px;
-    color: #d9d9d9;
-    text-align: center;
-    margin-bottom: 30px;
-}
-.card-box {
+
+.card {
     background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    padding: 24px 18px;
-    border-radius: 22px;
-    text-align: center;
-    color: white;
-    min-height: 120px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.20);
+    border-radius:20px;
+    padding:40px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:0.3s;
+    box-shadow:0 8px 25px rgba(0,0,0,0.2);
 }
-div.stButton > button {
-    width: 100%;
-    border-radius: 14px;
-    height: 48px;
-    font-size: 16px;
-    font-weight: 600;
+
+.card:hover{
+    transform:scale(1.05);
+    background:rgba(255,255,255,0.12);
 }
+
+.icon{
+    font-size:40px;
+}
+
+.title{
+    font-size:20px;
+    font-weight:600;
+    color:white;
+    margin-top:10px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
+st.title("AI Research & Productivity Dashboard")
 
-topics = [
-    "AI Research & Study Q&A",
-    "Research Paper Summarizer",
-    "Math & Statistics Solver",
-    "AI Coding Assistant",
-    "Weather Information",
-    "Smart Location Finder",
-    "News & AI Trend Analyzer"
-]
+st.write("Select one tool from the dashboard")
 
-# First row
-row1 = st.columns(4)
-for i in range(4):
-    with row1[i]:
-        st.markdown(f'<div class="card-box">{topics[i]}</div>', unsafe_allow_html=True)
+# --------------------------
+# First Row
+# --------------------------
 
-        # Only connect the summarizer page for now
-        if topics[i] == "Research Paper Summarizer":
-            if st.button("Open", key=f"open_{i}"):
-                st.switch_page("pages/2_Research_Paper_Summarizer.py")
-        else:
-            st.button("Open", key=f"open_{i}", disabled=True)
+col1,col2,col3,col4 = st.columns(4)
 
-# Second row
-row2 = st.columns(3)
-for i in range(4, 7):
-    with row2[i - 4]:
-        st.markdown(f'<div class="card-box">{topics[i]}</div>', unsafe_allow_html=True)
-        st.button("Open", key=f"open_{i}", disabled=True)
+# -------- AI Q&A ----------
+with col1:
+    if st.button("🤖💬\nAI Research Study QA",use_container_width=True):
+        st.switch_page("pages/1_AI_Research_Study_QA.py")
 
-st.info("For now, only the Research Paper Summarizer page is active.")
+# -------- Summarizer -------
+with col2:
+    if st.button("📄🧠\nResearch Paper Summarizer",use_container_width=True):
+        st.switch_page("pages/2_Research_Paper_Summarizer.py")
+
+# other placeholders
+with col3:
+    st.button("📊\nMath & Statistics Solver", disabled=True,use_container_width=True)
+
+with col4:
+    st.button("💻\nAI Coding Assistant", disabled=True,use_container_width=True)
+
+# --------------------------
+# Second Row
+# --------------------------
+
+col5,col6,col7 = st.columns(3)
+
+with col5:
+    st.button("🌦\nWeather Information",disabled=True,use_container_width=True)
+
+with col6:
+    st.button("📍\nSmart Location Finder",disabled=True,use_container_width=True)
+
+with col7:
+    st.button("📰\nAI News Analyzer",disabled=True,use_container_width=True)
