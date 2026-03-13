@@ -3,7 +3,7 @@ import streamlit as st
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
 # -----------------------------
-# Simple custom CSS for card UI
+# Page style
 # -----------------------------
 st.markdown("""
 <style>
@@ -14,12 +14,12 @@ st.markdown("""
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
-.big-title {
+.title-text {
     font-size: 42px;
-    font-weight: 700;
+    font-weight: 800;
     color: white;
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .sub-text {
     font-size: 18px;
@@ -27,28 +27,28 @@ st.markdown("""
     text-align: center;
     margin-bottom: 30px;
 }
-.card {
+.card-box {
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.12);
-    padding: 28px 20px;
+    padding: 24px 18px;
     border-radius: 22px;
     text-align: center;
     color: white;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.20);
     min-height: 120px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.20);
 }
 div.stButton > button {
     width: 100%;
-    border-radius: 16px;
-    height: 52px;
-    font-size: 18px;
+    border-radius: 14px;
+    height: 48px;
+    font-size: 16px;
     font-weight: 600;
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="big-title">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-text">Choose one module from the dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
 topics = [
     "AI Research & Study Q&A",
@@ -60,22 +60,24 @@ topics = [
     "News & AI Trend Analyzer"
 ]
 
-# 4 cards in first row
-cols1 = st.columns(4)
+# First row
+row1 = st.columns(4)
 for i in range(4):
-    with cols1[i]:
-        st.markdown(f'<div class="card">{topics[i]}</div>', unsafe_allow_html=True)
-        if i == 0:
-            if st.button(f"Open {i+1}", key=f"btn_{i}"):
-                st.switch_page("pages/1_AI_Research_Study_QA.py")
+    with row1[i]:
+        st.markdown(f'<div class="card-box">{topics[i]}</div>', unsafe_allow_html=True)
+
+        # Only connect the summarizer page for now
+        if topics[i] == "Research Paper Summarizer":
+            if st.button("Open", key=f"open_{i}"):
+                st.switch_page("pages/2_Research_Paper_Summarizer.py")
         else:
-            st.button(f"Open {i+1}", key=f"btn_{i}", disabled=True)
+            st.button("Open", key=f"open_{i}", disabled=True)
 
-# 3 cards in second row
-cols2 = st.columns(3)
+# Second row
+row2 = st.columns(3)
 for i in range(4, 7):
-    with cols2[i - 4]:
-        st.markdown(f'<div class="card">{topics[i]}</div>', unsafe_allow_html=True)
-        st.button(f"Open {i+1}", key=f"btn_{i}", disabled=True)
+    with row2[i - 4]:
+        st.markdown(f'<div class="card-box">{topics[i]}</div>', unsafe_allow_html=True)
+        st.button("Open", key=f"open_{i}", disabled=True)
 
-st.info("For now, only the 'AI Research & Study Q&A' page is connected.")
+st.info("For now, only the Research Paper Summarizer page is active.")
