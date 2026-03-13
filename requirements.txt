@@ -1,3 +1,4 @@
 streamlit
 groq
 huggingface_hub
+pypdf
