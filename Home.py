@@ -3,7 +3,7 @@ import streamlit as st
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
 # -----------------------------
-# Custom CSS
+# Page style
 # -----------------------------
 st.markdown("""
 <style>
@@ -48,28 +48,17 @@ st.markdown("""
     border: 1px solid #cbd5e1 !important;
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12) !important;
 }
-
-.small-note {
-    text-align: center;
-    color: #94a3b8;
-    font-size: 0.95rem;
-    margin-top: 0.4rem;
-}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
-# -----------------------------
-# Safe page navigation helper
-# -----------------------------
 def go_to(page_path: str):
     try:
         st.switch_page(page_path)
-    except Exception as e:
+    except Exception:
         st.error(f"Page not found: {page_path}")
-        st.caption("Check the file name inside the pages folder.")
         st.stop()
 
 # -----------------------------
@@ -97,7 +86,8 @@ with c3:
 
 with c4:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    st.button("💻\nAI Coding Assistant", use_container_width=True, key="code", disabled=True)
+    if st.button("💻🧠\nAI Coding Assistant", use_container_width=True, key="code"):
+        go_to("pages/4_AI_Coding_Assistant.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------------
@@ -120,4 +110,4 @@ with c7:
     st.button("📰\nAI News Analyzer", use_container_width=True, key="news", disabled=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.info("Active pages: AI Research Study QA, Research Paper Summarizer, and Math & Statistics Solver.")
+st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, and AI Coding Assistant.")
