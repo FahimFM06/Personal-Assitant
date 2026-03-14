@@ -94,7 +94,8 @@ with c5:
 
 with c6:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    st.button("📍\nSmart Location Finder", use_container_width=True, key="location", disabled=True)
+    if st.button("🗺️📍\nSmart Location Finder", use_container_width=True, key="location"):
+        go_to("pages/6_Smart_Location_Finder.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c7:
@@ -102,4 +103,4 @@ with c7:
     st.button("📰\nAI News Analyzer", use_container_width=True, key="news", disabled=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, AI Coding Assistant, and Weather Information.")
+st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, AI Coding Assistant, Weather Information, and Smart Location Finder.")
