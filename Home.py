@@ -62,6 +62,17 @@ st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>'
 st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
 # -----------------------------
+# Safe page navigation helper
+# -----------------------------
+def go_to(page_path: str):
+    try:
+        st.switch_page(page_path)
+    except Exception as e:
+        st.error(f"Page not found: {page_path}")
+        st.caption("Check the file name inside the pages folder.")
+        st.stop()
+
+# -----------------------------
 # First row
 # -----------------------------
 c1, c2, c3, c4 = st.columns(4)
@@ -69,19 +80,19 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
     if st.button("🤖💬\nAI Research Study QA", use_container_width=True, key="qa"):
-        st.switch_page("pages/1_AI_Research_Study_QA.py")
+        go_to("pages/1_AI_Research_Study_QA.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c2:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
     if st.button("📄🧠\nResearch Paper Summarizer", use_container_width=True, key="summ"):
-        st.switch_page("pages/2_Research_Paper_Summarizer.py")
+        go_to("pages/2_Research_Paper_Summarizer.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c3:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
     if st.button("📊➗\nMath & Statistics Solver", use_container_width=True, key="math"):
-        st.switch_page("pages/3_Math_Statistics_Solver.py")
+        go_to("pages/3_Math_Statistics_Solver.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c4:
