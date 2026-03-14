@@ -2,83 +2,111 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
-# --------------------------
-# Custom dashboard style
-# --------------------------
+# -----------------------------
+# Custom CSS
+# -----------------------------
 st.markdown("""
 <style>
-
-.main {
-    background: linear-gradient(135deg,#04151f,#12061d);
+.stApp {
+    background: #f6f7fb;
 }
 
-.card {
-    background: rgba(255,255,255,0.08);
-    border-radius:20px;
-    padding:40px 20px;
-    text-align:center;
-    cursor:pointer;
-    transition:0.3s;
-    box-shadow:0 8px 25px rgba(0,0,0,0.2);
+.main .block-container {
+    max-width: 1200px;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
 }
 
-.card:hover{
-    transform:scale(1.05);
-    background:rgba(255,255,255,0.12);
+.title-text {
+    font-size: 2.7rem;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    margin-bottom: 0.4rem;
 }
 
-.icon{
-    font-size:40px;
+.sub-text {
+    font-size: 1.05rem;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
-.title{
-    font-size:20px;
-    font-weight:600;
-    color:white;
-    margin-top:10px;
+.card-btn button {
+    height: 150px !important;
+    border-radius: 22px !important;
+    border: 1px solid #e5e7eb !important;
+    background: white !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    white-space: pre-line !important;
 }
 
+.card-btn button:hover {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12) !important;
+}
+
+.small-note {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin-top: 0.4rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("AI Research & Productivity Dashboard")
+st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
-st.write("Select one tool from the dashboard")
+# -----------------------------
+# First row
+# -----------------------------
+c1, c2, c3, c4 = st.columns(4)
 
-# --------------------------
-# First Row
-# --------------------------
-
-col1,col2,col3,col4 = st.columns(4)
-
-# -------- AI Q&A ----------
-with col1:
-    if st.button("🤖💬\nAI Research Study QA",use_container_width=True):
+with c1:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    if st.button("🤖💬\nAI Research Study QA", use_container_width=True, key="qa"):
         st.switch_page("pages/1_AI_Research_Study_QA.py")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# -------- Summarizer -------
-with col2:
-    if st.button("📄🧠\nResearch Paper Summarizer",use_container_width=True):
+with c2:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    if st.button("📄🧠\nResearch Paper Summarizer", use_container_width=True, key="summ"):
         st.switch_page("pages/2_Research_Paper_Summarizer.py")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# other placeholders
-with col3:
-    st.button("📊\nMath & Statistics Solver", disabled=True,use_container_width=True)
+with c3:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    if st.button("📊➗\nMath & Statistics Solver", use_container_width=True, key="math"):
+        st.switch_page("pages/3_Math_Statistics_Solver.py")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col4:
-    st.button("💻\nAI Coding Assistant", disabled=True,use_container_width=True)
+with c4:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    st.button("💻\nAI Coding Assistant", use_container_width=True, key="code", disabled=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --------------------------
-# Second Row
-# --------------------------
+# -----------------------------
+# Second row
+# -----------------------------
+c5, c6, c7 = st.columns(3)
 
-col5,col6,col7 = st.columns(3)
+with c5:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    st.button("🌦️\nWeather Information", use_container_width=True, key="weather", disabled=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col5:
-    st.button("🌦\nWeather Information",disabled=True,use_container_width=True)
+with c6:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    st.button("📍\nSmart Location Finder", use_container_width=True, key="location", disabled=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col6:
-    st.button("📍\nSmart Location Finder",disabled=True,use_container_width=True)
+with c7:
+    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
+    st.button("📰\nAI News Analyzer", use_container_width=True, key="news", disabled=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col7:
-    st.button("📰\nAI News Analyzer",disabled=True,use_container_width=True)
+st.info("Active pages: AI Research Study QA, Research Paper Summarizer, and Math & Statistics Solver.")
