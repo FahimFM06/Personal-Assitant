@@ -46,7 +46,7 @@ if "math_max_tokens" not in st.session_state:
 # ---------------------------------------------------
 def get_math_response(messages, model_id, temperature, max_tokens):
     """
-    Sends the conversation to Groq and returns the model response.
+    Send the conversation to Groq and return the answer.
     """
     client = Groq(api_key=GROQ_API_KEY)
 
@@ -55,10 +55,10 @@ def get_math_response(messages, model_id, temperature, max_tokens):
 
     Rules:
     1. Solve problems step by step.
-    2. Keep the explanation clear and student-friendly.
+    2. Keep explanations clear and student-friendly.
     3. For statistics, explain formulas and meaning.
-    4. If the user asks for only the final answer, give the final answer first and then a short explanation.
-    5. If the question is ambiguous, make a reasonable assumption and state it clearly.
+    4. If the user asks for only the final answer, give the final answer first.
+    5. Use simple formatting.
     """
 
     api_messages = [{"role": "system", "content": system_prompt}]
@@ -77,9 +77,6 @@ def get_math_response(messages, model_id, temperature, max_tokens):
 # Helper: export chat
 # ---------------------------------------------------
 def export_chat(messages):
-    """
-    Convert chat history to a downloadable JSON string.
-    """
     return json.dumps(messages, indent=2, ensure_ascii=False)
 
 # ---------------------------------------------------
@@ -101,7 +98,7 @@ st.markdown("""
     font-size: 3rem;
     font-weight: 800;
     color: #0f172a;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.25rem;
 }
 
 .page-subtitle {
@@ -117,11 +114,7 @@ st.markdown("""
     background: white;
 }
 
-.chat-wrap {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-}
-
+/* Chat message styles */
 .user-box {
     background: #e5e7eb;
     color: #111827;
@@ -152,11 +145,6 @@ st.markdown("""
     color: #6b7280;
     margin-top: 0.25rem;
 }
-
-hr {
-    border: none;
-    border-top: 1px solid #e5e7eb;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -178,20 +166,20 @@ with left_col:
     with top2:
         st.markdown('<div class="page-title">Math & Statistics Solver</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="page-subtitle">Ask math, probability, linear algebra, calculus, or statistics questions.</div>',
+            '<div class="page-subtitle">Ask anything about algebra, calculus, probability, statistics, or linear algebra.</div>',
             unsafe_allow_html=True
         )
 
-    a1, a2, a3 = st.columns(3)
+    b1, b2, b3 = st.columns(3)
 
-    with a1:
+    with b1:
         if st.button("🆕 New chat", use_container_width=True):
             st.session_state.math_messages = [
                 {"role": "assistant", "content": "Hello, how can I help you with math or statistics today?"}
             ]
             st.rerun()
 
-    with a2:
+    with b2:
         if st.button("🗑 Delete last", use_container_width=True):
             if len(st.session_state.math_messages) > 1:
                 st.session_state.math_messages.pop()
@@ -199,7 +187,7 @@ with left_col:
                     st.session_state.math_messages.pop()
             st.rerun()
 
-    with a3:
+    with b3:
         st.download_button(
             "⬇ Export chat",
             data=export_chat(st.session_state.math_messages),
@@ -208,7 +196,7 @@ with left_col:
             use_container_width=True
         )
 
-    st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
+    st.write("")
 
     for msg in st.session_state.math_messages:
         if msg["role"] == "user":
@@ -217,8 +205,6 @@ with left_col:
         else:
             st.markdown('<div class="role-label">🤖 Assistant</div>', unsafe_allow_html=True)
             st.markdown(f'<div class="assistant-box">{msg["content"]}</div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     user_prompt = st.chat_input("Type your math or statistics question...")
 
