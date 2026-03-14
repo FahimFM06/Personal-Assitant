@@ -2,9 +2,6 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
-# -----------------------------
-# Page style
-# -----------------------------
 st.markdown("""
 <style>
 .stApp {
@@ -61,9 +58,6 @@ def go_to(page_path: str):
         st.error(f"Page not found: {page_path}")
         st.stop()
 
-# -----------------------------
-# First row
-# -----------------------------
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
@@ -90,14 +84,12 @@ with c4:
         go_to("pages/4_AI_Coding_Assistant.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# -----------------------------
-# Second row
-# -----------------------------
 c5, c6, c7 = st.columns(3)
 
 with c5:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    st.button("🌦️\nWeather Information", use_container_width=True, key="weather", disabled=True)
+    if st.button("🌦️📍\nWeather Information", use_container_width=True, key="weather"):
+        go_to("pages/5_Weather_Information.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c6:
@@ -110,4 +102,4 @@ with c7:
     st.button("📰\nAI News Analyzer", use_container_width=True, key="news", disabled=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, and AI Coding Assistant.")
+st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, AI Coding Assistant, and Weather Information.")
