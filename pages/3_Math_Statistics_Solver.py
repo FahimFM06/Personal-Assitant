@@ -21,7 +21,9 @@ GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
 # ---------------------------------------------------
 GROQ_MODELS = {
     "Llama 3.3 70B": "llama-3.3-70b-versatile",
-    "Llama 3.1 8B": "llama-3.1-8b-instant"
+    "Llama 3.1 8B": "llama-3.1-8b-instant",
+    "GPT-OSS 120B": "openai/gpt-oss-120b",
+    "GPT-OSS 20B": "openai/gpt-oss-20b",
 }
 
 # ---------------------------------------------------
