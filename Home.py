@@ -100,7 +100,8 @@ with c6:
 
 with c7:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    st.button("📰\nAI News Analyzer", use_container_width=True, key="news", disabled=True)
+    if st.button("📰🤖\nAI News Analyzer", use_container_width=True, key="news"):
+        go_to("pages/7_AI_News_Analyzer.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.info("Active pages: Q&A, Research Paper Summarizer, Math & Statistics Solver, AI Coding Assistant, Weather Information, and Smart Location Finder.")
+st.info("All 7 dashboard tools are now connected.")
