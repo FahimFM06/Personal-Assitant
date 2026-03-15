@@ -26,9 +26,9 @@ GROQ_MODELS = {
     "Llama 3.1 8B (Fast)": "llama-3.1-8b-instant"
 }
 
+
 HF_MODELS = {
-    "Qwen 2.5 Coder 7B Instruct": "Qwen/Qwen2.5-Coder-7B-Instruct",
-    "DeepSeek Coder": "deepseek-ai/deepseek-coder-6.7b-instruct"
+    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct"
 }
 
 # ---------------------------------------------------
