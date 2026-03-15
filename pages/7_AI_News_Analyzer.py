@@ -28,8 +28,7 @@ GROQ_MODELS = {
 }
 
 HF_MODELS = {
-    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct",
-    "Phi 3.5 Mini Instruct": "microsoft/Phi-3.5-mini-instruct"
+    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct"
 }
 
 # ---------------------------------------------------
