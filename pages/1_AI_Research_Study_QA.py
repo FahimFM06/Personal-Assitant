@@ -16,7 +16,17 @@ st.set_page_config(
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
 
 # -----------------------------------
-# Same 3 themes (match your dashboard)
+# Groq models only
+# -----------------------------------
+GROQ_MODELS = {
+    "Llama 3.3 70B": "llama-3.3-70b-versatile",
+    "Llama 3.1 8B": "llama-3.1-8b-instant",
+    "GPT-OSS 120B": "openai/gpt-oss-120b",
+    "GPT-OSS 20B": "openai/gpt-oss-20b",
+}
+
+# -----------------------------------
+# Themes (same as dashboard)
 # -----------------------------------
 THEMES = {
     "Cloud (Light)": {
@@ -34,6 +44,9 @@ THEMES = {
         "btn_bg": "#ffffff",
         "btn_border": "#e5e7eb",
         "btn_text": "#111827",
+        "chat_bg_user": "rgba(37, 99, 235, 0.06)",
+        "chat_bg_ai": "rgba(15, 23, 42, 0.04)",
+        "chat_border": "rgba(229, 231, 235, 1)",
     },
     "Midnight (Dark)": {
         "app_bg": "#0b1220",
@@ -50,6 +63,9 @@ THEMES = {
         "btn_bg": "#0f172a",
         "btn_border": "#1f2a44",
         "btn_text": "#e5e7eb",
+        "chat_bg_user": "rgba(56, 189, 248, 0.08)",
+        "chat_bg_ai": "rgba(148, 163, 184, 0.10)",
+        "chat_border": "rgba(31, 42, 68, 1)",
     },
     "Night Mode": {
         "app_bg": """
@@ -75,11 +91,14 @@ THEMES = {
         "btn_bg": "rgba(20, 20, 22, 0.72)",
         "btn_border": "rgba(255,255,255,0.10)",
         "btn_text": "#f3f4f6",
+        "chat_bg_user": "rgba(255,255,255,0.06)",
+        "chat_bg_ai": "rgba(255,255,255,0.04)",
+        "chat_border": "rgba(255,255,255,0.10)",
     },
 }
 
 # -----------------------------------
-# Session state (theme + chat + model)
+# Session state
 # -----------------------------------
 if "theme_name" not in st.session_state:
     st.session_state.theme_name = "Cloud (Light)"
@@ -89,21 +108,13 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Hello, how can I help you today?"}
     ]
 
-# Groq models only
-GROQ_MODELS = {
-    "Llama 3.3 70B": "llama-3.3-70b-versatile",
-    "Llama 3.1 8B": "llama-3.1-8b-instant",
-    "GPT-OSS 120B": "openai/gpt-oss-120b",
-    "GPT-OSS 20B": "openai/gpt-oss-20b",
-}
-
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = GROQ_MODELS["Llama 3.3 70B"]
 
 T = THEMES[st.session_state.theme_name]
 
 # -----------------------------------
-# Apply theme CSS + top-right Theme button look
+# CSS (adds a scrollable chat area + bottom input feel)
 # -----------------------------------
 st.markdown(
     f"""
@@ -117,12 +128,12 @@ st.markdown(
         --panel-text: {T["panel_text"]};
         --chip-bg: {T["chip_bg"]};
         --chip-border: {T["chip_border"]};
-        --info-bg: {T["info_bg"]};
-        --info-border: {T["info_border"]};
-        --info-text: {T["info_text"]};
         --btn-bg: {T["btn_bg"]};
         --btn-border: {T["btn_border"]};
         --btn-text: {T["btn_text"]};
+        --chat-user: {T["chat_bg_user"]};
+        --chat-ai: {T["chat_bg_ai"]};
+        --chat-border: {T["chat_border"]};
     }}
 
     .stApp {{
@@ -131,8 +142,8 @@ st.markdown(
 
     .block-container {{
         max-width: 1400px;
-        padding-top: 1.2rem;
-        padding-bottom: 1.5rem;
+        padding-top: 1.1rem;
+        padding-bottom: 1.0rem;
     }}
 
     .page-title {{
@@ -145,25 +156,10 @@ st.markdown(
     .page-sub {{
         color: var(--sub);
         font-size: 16px;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
     }}
 
-    .right-panel {{
-        background: var(--panel-bg);
-        border: 1px solid var(--panel-border);
-        border-radius: 18px;
-        padding: 18px;
-        color: var(--panel-text);
-    }}
-
-    .right-title {{
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--title);
-        margin-bottom: 12px;
-    }}
-
-    /* Buttons (New chat / Delete last / Export / Reset etc.) */
+    /* Buttons */
     div.stButton > button, div.stDownloadButton > button {{
         width: 100%;
         border-radius: 12px !important;
@@ -182,17 +178,51 @@ st.markdown(
         color: var(--panel-text) !important;
     }}
 
+    /* Right panel */
+    .right-panel {{
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 18px;
+        padding: 18px;
+        color: var(--panel-text);
+    }}
+
+    .right-title {{
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--title);
+        margin-bottom: 12px;
+    }}
+
     hr {{
         border-color: var(--panel-border);
     }}
 
-    /* Alert info styling (if you use st.info somewhere) */
-    div[data-testid="stAlert"] {{
-        background: var(--info-bg) !important;
-        border: 1px solid var(--info-border) !important;
+    /* Scrollable chat history container */
+    .chat-shell {{
+        border: 1px solid var(--panel-border);
+        background: rgba(255,255,255,0.02);
+        border-radius: 18px;
+        padding: 12px;
+        height: calc(100vh - 320px);
+        overflow-y: auto;
     }}
-    div[data-testid="stAlert"] * {{
-        color: var(--info-text) !important;
+
+    /* Slightly style chat message blocks */
+    div[data-testid="stChatMessage"] {{
+        border: 1px solid var(--chat-border);
+        border-radius: 16px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: var(--chat-ai);
+    }}
+    div[data-testid="stChatMessage"][data-testid*="user"] {{
+        background: var(--chat-user);
+    }}
+
+    /* Make chat input look wider and bottom */
+    div[data-testid="stChatInput"] {{
+        margin-top: 12px;
     }}
     </style>
     """,
@@ -222,7 +252,6 @@ def ask_groq(messages, model_name):
         temperature=0.3,
         max_tokens=700,
     )
-
     return response.choices[0].message.content.strip()
 
 
@@ -251,13 +280,12 @@ def export_chat():
 # -----------------------------------
 # Layout
 # -----------------------------------
-left_col, right_col = st.columns([4.6, 1.4])
+left_col, right_col = st.columns([4.6, 1.4], gap="large")
 
 # -----------------------------------
-# Left side: chat
+# Left side: header + buttons + messages + input (INPUT AT BOTTOM)
 # -----------------------------------
 with left_col:
-    # Header row with Theme button on the right (same idea as dashboard)
     h_left, h_right = st.columns([0.78, 0.22], vertical_alignment="center")
 
     with h_left:
@@ -274,10 +302,8 @@ with left_col:
                 list(THEMES.keys()),
                 index=list(THEMES.keys()).index(st.session_state.theme_name),
             )
-            # No extra text output
 
     c1, c2, c3 = st.columns([1, 1, 1.1])
-
     with c1:
         if st.button("🆕 New chat"):
             reset_chat()
@@ -296,13 +322,15 @@ with left_col:
             mime="text/plain",
         )
 
-    st.markdown("")
-
+    # Messages area (scrollable)
+    st.markdown('<div class="chat-shell">', unsafe_allow_html=True)
     for msg in st.session_state.messages:
         avatar = "👤" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
+    st.markdown("</div>", unsafe_allow_html=True)
 
+    # Chat input at bottom
     user_prompt = st.chat_input("Type your question...")
 
     if user_prompt:
@@ -315,7 +343,6 @@ with left_col:
                     reply = "GROQ_API_KEY is missing in Streamlit secrets."
                 else:
                     reply = ask_groq(st.session_state.messages, selected_model)
-
         except Exception as e:
             reply = f"Something went wrong:\n\n{str(e)}"
 
@@ -332,12 +359,14 @@ with right_col:
     selected_label = st.selectbox(
         "Groq model",
         list(GROQ_MODELS.keys()),
+        index=list(GROQ_MODELS.keys()).index(
+            next(k for k, v in GROQ_MODELS.items() if v == st.session_state.selected_model)
+        ),
         label_visibility="collapsed",
     )
     st.session_state.selected_model = GROQ_MODELS[selected_label]
 
     st.caption("Groq models only")
-
     st.markdown("---")
 
     if st.button("♻ Reset session"):
