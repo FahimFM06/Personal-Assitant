@@ -1,19 +1,6 @@
 import os
 import streamlit as st
 
-# =========================================================
-# 1) INSTALL + API KEY (do this outside Python)
-# =========================================================
-# pip install -U streamlit groq
-#
-# Set env var:
-#   mac/linux:  export GROQ_API_KEY="YOUR_KEY"
-#   windows PS: setx GROQ_API_KEY "YOUR_KEY"
-# =========================================================
-
-# -----------------------------
-# Page config
-# -----------------------------
 st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
 
 # -----------------------------
@@ -24,11 +11,14 @@ THEMES = {
         "app_bg": "#f6f7fb",
         "panel_bg": "#ffffff",
         "title": "#0f172a",
-        "sub": "#64748b",
+        "sub": "#475569",
         "border": "#e5e7eb",
-        "text": "#111827",
+        "text": "#0f172a",      # <-- BLACK/DARK TEXT for light theme
+        "muted": "#475569",
         "shadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
         "input_bg": "#ffffff",
+        "chat_user_bg": "#eef2ff",
+        "chat_assistant_bg": "#ffffff",
     },
     "Midnight (Dark)": {
         "app_bg": "#0b1220",
@@ -37,8 +27,11 @@ THEMES = {
         "sub": "#94a3b8",
         "border": "#1f2a44",
         "text": "#e5e7eb",
+        "muted": "#94a3b8",
         "shadow": "0 10px 26px rgba(0,0,0,0.45)",
         "input_bg": "#0f172a",
+        "chat_user_bg": "rgba(148,163,184,0.16)",
+        "chat_assistant_bg": "rgba(15,23,42,0.65)",
     },
     "Night Mode": {
         "app_bg": """
@@ -56,8 +49,11 @@ THEMES = {
         "sub": "#cbd5e1",
         "border": "rgba(255,255,255,0.10)",
         "text": "#f3f4f6",
+        "muted": "#cbd5e1",
         "shadow": "0 12px 30px rgba(0,0,0,0.55)",
         "input_bg": "rgba(20, 20, 22, 0.72)",
+        "chat_user_bg": "rgba(255,255,255,0.08)",
+        "chat_assistant_bg": "rgba(0,0,0,0.18)",
     },
 }
 
@@ -83,50 +79,108 @@ if "messages" not in st.session_state:
 T = THEMES[st.session_state.theme_name]
 
 # -----------------------------
-# CSS
+# CSS (FIXED for light theme readability)
 # -----------------------------
 st.markdown(
     f"""
     <style>
-    .stApp {{
-        background: {T["app_bg"]} !important;
+    :root {{
+        --app-bg: {T["app_bg"]};
+        --panel-bg: {T["panel_bg"]};
+        --title: {T["title"]};
+        --sub: {T["sub"]};
+        --border: {T["border"]};
+        --text: {T["text"]};
+        --muted: {T["muted"]};
+        --shadow: {T["shadow"]};
+        --input-bg: {T["input_bg"]};
+        --chat-user-bg: {T["chat_user_bg"]};
+        --chat-assistant-bg: {T["chat_assistant_bg"]};
     }}
+
+    .stApp {{
+        background: var(--app-bg) !important;
+        color: var(--text) !important;
+    }}
+
+    /* Force global text color */
+    html, body, [class*="css"] {{
+        color: var(--text) !important;
+    }}
+
     .main .block-container {{
         max-width: 1300px;
         padding-top: 1rem;
         padding-bottom: 0.5rem;
     }}
+
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
+
     .page-title {{
         font-size: 2.0rem;
         font-weight: 800;
-        color: {T["title"]};
+        color: var(--title) !important;
         margin: 0 0 0.1rem 0;
     }}
+
     .page-sub {{
-        color: {T["sub"]};
+        color: var(--sub) !important;
         margin: 0 0 0.8rem 0;
         font-size: 0.95rem;
     }}
+
+    /* Right panel */
     .right-panel {{
-        background: {T["panel_bg"]};
-        border: 1px solid {T["border"]};
+        background: var(--panel-bg) !important;
+        border: 1px solid var(--border) !important;
         border-radius: 16px;
         padding: 14px;
-        box-shadow: {T["shadow"]};
+        box-shadow: var(--shadow) !important;
+        color: var(--text) !important;
     }}
+
     /* Move right panel DOWN (middle) */
     .right-middle {{
         margin-top: 140px;
     }}
+
     /* Chat input styling */
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
-        border: 1px solid {T["border"]} !important;
-        background: {T["input_bg"]} !important;
+        border: 1px solid var(--border) !important;
+        background: var(--input-bg) !important;
     }}
+    div[data-testid="stChatInput"] textarea {{
+        color: var(--text) !important;
+    }}
+
+    /* Make chat text always visible */
+    div[data-testid="stChatMessage"] * {{
+        color: var(--text) !important;
+    }}
+
+    /* Slight backgrounds per role */
+    div[data-testid="stChatMessage"][data-testid*="user"] {{
+        background: transparent !important;
+    }}
+
+    /* Try to style message bubbles (Streamlit changes classes often; this is best-effort) */
+    div[data-testid="stChatMessage"] {{
+        border-radius: 14px;
+        padding: 2px 0;
+    }}
+
+    /* Widget labels + selectbox text (fix Cloud theme) */
+    label, .stCaption, .stMarkdown, .stText {{
+        color: var(--text) !important;
+    }}
+    .stCaption {{
+        color: var(--muted) !important;
+    }}
+
+    /* Buttons */
     .stButton > button {{
         border-radius: 12px !important;
     }}
@@ -145,7 +199,6 @@ with top_left:
     st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
 
 with top_right:
-    # If your Streamlit is old and popover doesn't exist, update Streamlit.
     with st.popover("🎨 Theme ▾", use_container_width=True):
         st.session_state.theme_name = st.selectbox(
             "Theme",
@@ -194,8 +247,8 @@ with right_col:
         st.session_state.clear()
         st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)  # right-panel
-    st.markdown("</div>", unsafe_allow_html=True)  # right-middle
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================
 # CHAT INPUT (always bottom)
@@ -206,9 +259,6 @@ user_text = st.chat_input("Type your message...")
 # REAL AI RESPONSE (Groq)
 # =========================================================
 def groq_reply(messages, model_id: str) -> str:
-    """
-    messages: list of dicts: [{"role":"user|assistant|system","content":"..."}]
-    """
     try:
         from groq import Groq
     except Exception:
@@ -230,16 +280,11 @@ def groq_reply(messages, model_id: str) -> str:
         return f"Error calling Groq: {e}"
 
 if user_text:
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": user_text})
 
-    # Prepare messages for API (optional system prompt)
     api_messages = [{"role": "system", "content": "You are a helpful assistant."}] + st.session_state.messages
-
-    # Call Groq
     model_id = MODEL_MAP.get(st.session_state.model_name, "llama-3.3-70b-versatile")
-    answer = groq_reply(api_messages, model_id)
 
-    # Add assistant answer
+    answer = groq_reply(api_messages, model_id)
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.rerun()
