@@ -3,9 +3,12 @@ import streamlit as st
 
 st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
 
-# -----------------------------
-# Themes (3 only)
-# -----------------------------
+# =========================================================
+# THEMES
+# - Cloud (Light): make RIGHT PANEL + widgets light (no dark bars)
+# - Midnight (Dark)
+# - Night Mode
+# =========================================================
 THEMES = {
     "Cloud (Light)": {
         "app_bg": "#f6f7fb",
@@ -13,12 +16,15 @@ THEMES = {
         "title": "#0f172a",
         "sub": "#475569",
         "border": "#e5e7eb",
-        "text": "#0f172a",      # <-- BLACK/DARK TEXT for light theme
-        "muted": "#475569",
+        "text": "#0f172a",
+        "muted": "#64748b",
         "shadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
         "input_bg": "#ffffff",
-        "chat_user_bg": "#eef2ff",
-        "chat_assistant_bg": "#ffffff",
+        "widget_bg": "#ffffff",
+        "widget_text": "#0f172a",
+        "btn_bg": "#111827",
+        "btn_text": "#ffffff",
+        "btn_border": "#111827",
     },
     "Midnight (Dark)": {
         "app_bg": "#0b1220",
@@ -30,8 +36,11 @@ THEMES = {
         "muted": "#94a3b8",
         "shadow": "0 10px 26px rgba(0,0,0,0.45)",
         "input_bg": "#0f172a",
-        "chat_user_bg": "rgba(148,163,184,0.16)",
-        "chat_assistant_bg": "rgba(15,23,42,0.65)",
+        "widget_bg": "#111827",
+        "widget_text": "#e5e7eb",
+        "btn_bg": "#111827",
+        "btn_text": "#e5e7eb",
+        "btn_border": "#1f2a44",
     },
     "Night Mode": {
         "app_bg": """
@@ -52,8 +61,11 @@ THEMES = {
         "muted": "#cbd5e1",
         "shadow": "0 12px 30px rgba(0,0,0,0.55)",
         "input_bg": "rgba(20, 20, 22, 0.72)",
-        "chat_user_bg": "rgba(255,255,255,0.08)",
-        "chat_assistant_bg": "rgba(0,0,0,0.18)",
+        "widget_bg": "rgba(20, 20, 22, 0.72)",
+        "widget_text": "#f3f4f6",
+        "btn_bg": "rgba(20, 20, 22, 0.72)",
+        "btn_text": "#f3f4f6",
+        "btn_border": "rgba(255,255,255,0.12)",
     },
 }
 
@@ -69,17 +81,15 @@ MODEL_MAP = {
 # -----------------------------
 if "theme_name" not in st.session_state:
     st.session_state.theme_name = "Midnight (Dark)"
-
 if "model_name" not in st.session_state:
     st.session_state.model_name = MODELS_UI[0]
-
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
 
 T = THEMES[st.session_state.theme_name]
 
 # -----------------------------
-# CSS (FIXED for light theme readability)
+# CSS (fix Cloud Light widgets + right panel + text)
 # -----------------------------
 st.markdown(
     f"""
@@ -94,8 +104,11 @@ st.markdown(
         --muted: {T["muted"]};
         --shadow: {T["shadow"]};
         --input-bg: {T["input_bg"]};
-        --chat-user-bg: {T["chat_user_bg"]};
-        --chat-assistant-bg: {T["chat_assistant_bg"]};
+        --widget-bg: {T["widget_bg"]};
+        --widget-text: {T["widget_text"]};
+        --btn-bg: {T["btn_bg"]};
+        --btn-text: {T["btn_text"]};
+        --btn-border: {T["btn_border"]};
     }}
 
     .stApp {{
@@ -103,7 +116,6 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* Force global text color */
     html, body, [class*="css"] {{
         color: var(--text) !important;
     }}
@@ -146,7 +158,7 @@ st.markdown(
         margin-top: 140px;
     }}
 
-    /* Chat input styling */
+    /* Chat input */
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
         border: 1px solid var(--border) !important;
@@ -161,28 +173,37 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* Slight backgrounds per role */
-    div[data-testid="stChatMessage"][data-testid*="user"] {{
-        background: transparent !important;
+    /* ---- FIX: widgets in Cloud (Light) should not look dark ---- */
+    /* Selectbox / text input containers */
+    div[data-testid="stSelectbox"] > div {{
+        background: var(--widget-bg) !important;
+        color: var(--widget-text) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }}
+    div[data-testid="stSelectbox"] * {{
+        color: var(--widget-text) !important;
     }}
 
-    /* Try to style message bubbles (Streamlit changes classes often; this is best-effort) */
-    div[data-testid="stChatMessage"] {{
-        border-radius: 14px;
-        padding: 2px 0;
-    }}
-
-    /* Widget labels + selectbox text (fix Cloud theme) */
-    label, .stCaption, .stMarkdown, .stText {{
-        color: var(--text) !important;
-    }}
-    .stCaption {{
-        color: var(--muted) !important;
+    /* Popover button look */
+    button[data-testid="stPopoverButton"] {{
+        background: var(--widget-bg) !important;
+        color: var(--widget-text) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
     }}
 
     /* Buttons */
     .stButton > button {{
+        background: var(--btn-bg) !important;
+        color: var(--btn-text) !important;
+        border: 1px solid var(--btn-border) !important;
         border-radius: 12px !important;
+    }}
+
+    /* Captions */
+    .stCaption {{
+        color: var(--muted) !important;
     }}
     </style>
     """,
@@ -190,7 +211,7 @@ st.markdown(
 )
 
 # =========================================================
-# TOP BAR: Title + Theme button (right)
+# TOP BAR
 # =========================================================
 top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
 
@@ -236,7 +257,6 @@ with right_col:
         if st.button("🆕 New chat", use_container_width=True):
             st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
             st.rerun()
-
     with b:
         if st.button("🗑️ Delete last", use_container_width=True):
             if len(st.session_state.messages) > 1:
