@@ -5,7 +5,7 @@ st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
 
 # =========================================================
 # THEMES
-# - Cloud (Light): make RIGHT PANEL + widgets light (no dark bars)
+# - Cloud (Light): light widgets + BLACK text everywhere (including dropdown list)
 # - Midnight (Dark)
 # - Night Mode
 # =========================================================
@@ -22,6 +22,8 @@ THEMES = {
         "input_bg": "#ffffff",
         "widget_bg": "#ffffff",
         "widget_text": "#0f172a",
+        "menu_bg": "#ffffff",          # dropdown menu bg
+        "menu_text": "#0f172a",        # dropdown menu text
         "btn_bg": "#111827",
         "btn_text": "#ffffff",
         "btn_border": "#111827",
@@ -38,6 +40,8 @@ THEMES = {
         "input_bg": "#0f172a",
         "widget_bg": "#111827",
         "widget_text": "#e5e7eb",
+        "menu_bg": "#0b1220",
+        "menu_text": "#e5e7eb",
         "btn_bg": "#111827",
         "btn_text": "#e5e7eb",
         "btn_border": "#1f2a44",
@@ -63,6 +67,8 @@ THEMES = {
         "input_bg": "rgba(20, 20, 22, 0.72)",
         "widget_bg": "rgba(20, 20, 22, 0.72)",
         "widget_text": "#f3f4f6",
+        "menu_bg": "rgba(20, 20, 22, 0.92)",
+        "menu_text": "#f3f4f6",
         "btn_bg": "rgba(20, 20, 22, 0.72)",
         "btn_text": "#f3f4f6",
         "btn_border": "rgba(255,255,255,0.12)",
@@ -89,7 +95,7 @@ if "messages" not in st.session_state:
 T = THEMES[st.session_state.theme_name]
 
 # -----------------------------
-# CSS (fix Cloud Light widgets + right panel + text)
+# CSS (includes dropdown menu fix for Cloud Light)
 # -----------------------------
 st.markdown(
     f"""
@@ -106,6 +112,8 @@ st.markdown(
         --input-bg: {T["input_bg"]};
         --widget-bg: {T["widget_bg"]};
         --widget-text: {T["widget_text"]};
+        --menu-bg: {T["menu_bg"]};
+        --menu-text: {T["menu_text"]};
         --btn-bg: {T["btn_bg"]};
         --btn-text: {T["btn_text"]};
         --btn-border: {T["btn_border"]};
@@ -143,7 +151,6 @@ st.markdown(
         font-size: 0.95rem;
     }}
 
-    /* Right panel */
     .right-panel {{
         background: var(--panel-bg) !important;
         border: 1px solid var(--border) !important;
@@ -153,7 +160,6 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* Move right panel DOWN (middle) */
     .right-middle {{
         margin-top: 140px;
     }}
@@ -173,19 +179,38 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* ---- FIX: widgets in Cloud (Light) should not look dark ---- */
-    /* Selectbox / text input containers */
+    /* ---------- Widgets: Selectbox + Popover button ---------- */
+    /* Selectbox outer container */
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
-        color: var(--widget-text) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
+
+    /* Selected value + icons */
     div[data-testid="stSelectbox"] * {{
         color: var(--widget-text) !important;
     }}
 
-    /* Popover button look */
+    /* Dropdown menu (the open list) - FIX for Cloud (Light) */
+    div[role="listbox"] {{
+        background: var(--menu-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }}
+    div[role="listbox"] * {{
+        color: var(--menu-text) !important;
+    }}
+
+    /* Each option */
+    div[role="option"] {{
+        background: transparent !important;
+    }}
+    div[role="option"]:hover {{
+        background: rgba(100, 116, 139, 0.12) !important;
+    }}
+
+    /* Popover button */
     button[data-testid="stPopoverButton"] {{
         background: var(--widget-bg) !important;
         color: var(--widget-text) !important;
@@ -201,7 +226,6 @@ st.markdown(
         border-radius: 12px !important;
     }}
 
-    /* Captions */
     .stCaption {{
         color: var(--muted) !important;
     }}
