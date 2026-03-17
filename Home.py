@@ -252,4 +252,3 @@ with c7:
         go_to("pages/7_AI_News_Analyzer.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.info("All 7 dashboard tools are now connected.")
