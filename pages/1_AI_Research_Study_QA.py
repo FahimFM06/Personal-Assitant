@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 
 # -----------------------------
 # Page config
@@ -17,8 +16,8 @@ THEMES = {
         "sub": "#64748b",
         "border": "#e5e7eb",
         "text": "#111827",
-        "muted": "#6b7280",
         "shadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
+        "input_bg": "#ffffff",
     },
     "Midnight (Dark)": {
         "app_bg": "#0b1220",
@@ -27,8 +26,8 @@ THEMES = {
         "sub": "#94a3b8",
         "border": "#1f2a44",
         "text": "#e5e7eb",
-        "muted": "#94a3b8",
         "shadow": "0 10px 26px rgba(0,0,0,0.45)",
+        "input_bg": "#0f172a",
     },
     "Night Mode": {
         "app_bg": """
@@ -46,8 +45,8 @@ THEMES = {
         "sub": "#cbd5e1",
         "border": "rgba(255,255,255,0.10)",
         "text": "#f3f4f6",
-        "muted": "#cbd5e1",
         "shadow": "0 12px 30px rgba(0,0,0,0.55)",
+        "input_bg": "rgba(20, 20, 22, 0.72)",
     },
 }
 
@@ -61,9 +60,7 @@ if "model_name" not in st.session_state:
     st.session_state.model_name = "Llama 3.3 70B"
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Hello, how can I help you today?"}
-    ]
+    st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
 
 T = THEMES[st.session_state.theme_name]
 
@@ -78,19 +75,17 @@ st.markdown(
     }}
 
     .main .block-container {{
-        max-width: 1200px;
-        padding-top: 1.0rem;
-        padding-bottom: 1.0rem;
+        max-width: 1300px;
+        padding-top: 1rem;
+        padding-bottom: 0.5rem;
     }}
 
-    /* Hide the default Streamlit header spacing a bit */
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
 
-    /* Page title */
     .page-title {{
-        font-size: 2rem;
+        font-size: 2.0rem;
         font-weight: 800;
         color: {T["title"]};
         margin: 0 0 0.1rem 0;
@@ -101,7 +96,6 @@ st.markdown(
         font-size: 0.95rem;
     }}
 
-    /* Right control panel look */
     .right-panel {{
         background: {T["panel_bg"]};
         border: 1px solid {T["border"]};
@@ -110,39 +104,37 @@ st.markdown(
         box-shadow: {T["shadow"]};
     }}
 
-    /* Chat area - remove the "extra empty middle" feeling */
-    div[data-testid="stChatMessage"] {{
-        border-radius: 14px;
-    }}
-
-    /* Make chat input look nicer */
+    /* Chat input look */
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
         border: 1px solid {T["border"]} !important;
-        background: {T["panel_bg"]} !important;
+        background: {T["input_bg"]} !important;
     }}
 
-    /* Slightly reduce top blank space above chat */
-    .stChatFloatingInputContainer {{
-        padding-bottom: 0.25rem;
+    /* Make right side "middle aligned" */
+    .right-middle {{
+        margin-top: 140px;   /* pushes it down into the middle */
     }}
 
+    /* Optional: nicer buttons */
+    .stButton > button {{
+        border-radius: 12px !important;
+    }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
 # =========================================================
-# TOP BAR: left = title, right = theme button (popover)
+# TOP BAR: Title + Theme button (right)
 # =========================================================
-top_left, top_right = st.columns([0.72, 0.28], vertical_alignment="center")
+top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
 
 with top_left:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
 
 with top_right:
-    # Theme button on the top bar (as you want)
     with st.popover("🎨 Theme ▾", use_container_width=True):
         st.session_state.theme_name = st.selectbox(
             "Theme",
@@ -150,37 +142,45 @@ with top_right:
             index=list(THEMES.keys()).index(st.session_state.theme_name),
         )
 
-# Update theme after selection (rerun also happens automatically)
+# refresh theme after selection
 T = THEMES[st.session_state.theme_name]
 
 # =========================================================
-# MAIN LAYOUT: left = chat messages, right = controls (moved DOWN)
+# MAIN AREA: 3/4 chat + 1/4 right controls
 # =========================================================
-chat_col, right_col = st.columns([0.74, 0.26], gap="large")
+chat_col, right_col = st.columns([3, 1], gap="large")  # <-- 3/4 and 1/4
+
+with chat_col:
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
 with right_col:
+    # Push the whole right panel DOWN (middle)
+    st.markdown('<div class="right-middle">', unsafe_allow_html=True)
+
     st.markdown('<div class="right-panel">', unsafe_allow_html=True)
 
     st.markdown("**Select Model**")
+    MODELS = ["Llama 3.3 70B", "Llama 3.1 8B", "Gemma 2 9B"]
     st.session_state.model_name = st.selectbox(
         "Select Model",
-        ["Llama 3.3 70B", "Llama 3.1 8B", "Gemma 2 9B"],
-        index=["Llama 3.3 70B", "Llama 3.1 8B", "Gemma 2 9B"].index(st.session_state.model_name),
+        MODELS,
+        index=MODELS.index(st.session_state.model_name),
         label_visibility="collapsed",
     )
     st.caption("Groq models only")
 
     st.divider()
 
-    colA, colB = st.columns(2)
-    with colA:
+    a, b = st.columns(2)
+    with a:
         if st.button("🆕 New chat", use_container_width=True):
             st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
             st.rerun()
 
-    with colB:
+    with b:
         if st.button("🗑️ Delete last", use_container_width=True):
-            # remove last user/assistant if exists
             if len(st.session_state.messages) > 1:
                 st.session_state.messages.pop()
             st.rerun()
@@ -189,13 +189,8 @@ with right_col:
         st.session_state.clear()
         st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with chat_col:
-    # Show chat messages only (no empty middle box)
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+    st.markdown("</div>", unsafe_allow_html=True)  # right-panel
+    st.markdown("</div>", unsafe_allow_html=True)  # right-middle wrapper
 
 # =========================================================
 # CHAT INPUT (always bottom)
@@ -203,11 +198,9 @@ with chat_col:
 user_text = st.chat_input("Type your message...")
 
 if user_text:
-    # add user message
     st.session_state.messages.append({"role": "user", "content": user_text})
 
-    # demo assistant response (replace with your real LLM call)
+    # Demo response (replace with your real model call)
     reply = f"Got it. (Model: {st.session_state.model_name})\n\nYou said: {user_text}"
-
     st.session_state.messages.append({"role": "assistant", "content": reply})
     st.rerun()
