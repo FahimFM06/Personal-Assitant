@@ -1,4 +1,7 @@
+huggingface_hub
 streamlit
 groq
-huggingface_hub
 pypdf
+requests
+beautifulsoup4
+youtube-transcript-api
