@@ -2,52 +2,172 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
 
-st.markdown("""
-<style>
-.stApp {
-    background: #f6f7fb;
+# -----------------------------
+# Theme definitions (4–5 themes)
+# -----------------------------
+THEMES = {
+    "Cloud (Light)": {
+        "app_bg": "#f6f7fb",
+        "title": "#0f172a",
+        "sub": "#64748b",
+        "card_bg": "#ffffff",
+        "card_border": "#e5e7eb",
+        "card_shadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
+        "card_shadow_hover": "0 14px 34px rgba(15, 23, 42, 0.12)",
+        "btn_text": "#111827",
+    },
+    "Midnight (Dark)": {
+        "app_bg": "#0b1220",
+        "title": "#e5e7eb",
+        "sub": "#94a3b8",
+        "card_bg": "#0f172a",
+        "card_border": "#1f2a44",
+        "card_shadow": "0 10px 26px rgba(0,0,0,0.45)",
+        "card_shadow_hover": "0 14px 30px rgba(0,0,0,0.55)",
+        "btn_text": "#e5e7eb",
+    },
+    "Ocean (Blue)": {
+        "app_bg": "linear-gradient(135deg, #eef6ff 0%, #f7fbff 60%, #eef2ff 100%)",
+        "title": "#0b1b3a",
+        "sub": "#3b5b7a",
+        "card_bg": "#ffffff",
+        "card_border": "#dbeafe",
+        "card_shadow": "0 10px 26px rgba(2, 132, 199, 0.12)",
+        "card_shadow_hover": "0 14px 32px rgba(2, 132, 199, 0.18)",
+        "btn_text": "#0b1b3a",
+    },
+    "Mint (Calm)": {
+        "app_bg": "linear-gradient(135deg, #ecfeff 0%, #f7fffb 60%, #f0fdf4 100%)",
+        "title": "#052e2b",
+        "sub": "#0f766e",
+        "card_bg": "#ffffff",
+        "card_border": "#ccfbf1",
+        "card_shadow": "0 10px 26px rgba(13, 148, 136, 0.12)",
+        "card_shadow_hover": "0 14px 32px rgba(13, 148, 136, 0.18)",
+        "btn_text": "#052e2b",
+    },
+    "Sunset (Warm)": {
+        "app_bg": "linear-gradient(135deg, #fff7ed 0%, #fff1f2 55%, #f5f3ff 100%)",
+        "title": "#3b0a2a",
+        "sub": "#7c2d12",
+        "card_bg": "#ffffff",
+        "card_border": "#fed7aa",
+        "card_shadow": "0 10px 26px rgba(234, 88, 12, 0.12)",
+        "card_shadow_hover": "0 14px 32px rgba(234, 88, 12, 0.18)",
+        "btn_text": "#3b0a2a",
+    },
 }
 
-.main .block-container {
-    max-width: 1200px;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
+# -----------------------------
+# Sidebar controls
+# -----------------------------
+st.sidebar.header("Appearance")
+theme_name = st.sidebar.selectbox("Theme", list(THEMES.keys()), index=0)
 
-.title-text {
-    font-size: 2.7rem;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: center;
-    margin-bottom: 0.4rem;
-}
+# Logo: use either a URL or a local file path (e.g., "assets/logo.png")
+logo_url_or_path = st.sidebar.text_input(
+    "Logo URL or local path",
+    value="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Robot_icon.svg/256px-Robot_icon.svg.png"
+)
 
-.sub-text {
-    font-size: 1.05rem;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 2rem;
-}
+T = THEMES[theme_name]
 
-.card-btn button {
-    height: 150px !important;
-    border-radius: 22px !important;
-    border: 1px solid #e5e7eb !important;
-    background: white !important;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
-    font-size: 20px !important;
-    font-weight: 700 !important;
-    color: #111827 !important;
-    white-space: pre-line !important;
-}
+# -----------------------------
+# Apply CSS (theme + logo)
+# -----------------------------
+st.markdown(
+    f"""
+    <style>
+    :root {{
+        --app-bg: {T["app_bg"]};
+        --title: {T["title"]};
+        --sub: {T["sub"]};
+        --card-bg: {T["card_bg"]};
+        --card-border: {T["card_border"]};
+        --card-shadow: {T["card_shadow"]};
+        --card-shadow-hover: {T["card_shadow_hover"]};
+        --btn-text: {T["btn_text"]};
+    }}
 
-.card-btn button:hover {
-    border: 1px solid #cbd5e1 !important;
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12) !important;
-}
-</style>
-""", unsafe_allow_html=True)
+    .stApp {{
+        background: var(--app-bg) !important;
+    }}
 
+    .main .block-container {{
+        max-width: 1200px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        position: relative;
+    }}
+
+    .title-text {{
+        font-size: 2.7rem;
+        font-weight: 800;
+        color: var(--title);
+        text-align: center;
+        margin-bottom: 0.4rem;
+    }}
+
+    .sub-text {{
+        font-size: 1.05rem;
+        color: var(--sub);
+        text-align: center;
+        margin-bottom: 2rem;
+    }}
+
+    /* Card button styling */
+    .card-btn button {{
+        height: 150px !important;
+        border-radius: 22px !important;
+        border: 1px solid var(--card-border) !important;
+        background: var(--card-bg) !important;
+        box-shadow: var(--card-shadow) !important;
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: var(--btn-text) !important;
+        white-space: pre-line !important;
+    }}
+
+    .card-btn button:hover {{
+        border: 1px solid color-mix(in srgb, var(--card-border), #000 15%) !important;
+        box-shadow: var(--card-shadow-hover) !important;
+    }}
+
+    /* Top-right logo */
+    .top-right-logo {{
+        position: fixed;
+        top: 14px;
+        right: 16px;
+        z-index: 9999;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.75);
+        border: 1px solid rgba(229,231,235,0.9);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }}
+
+    .top-right-logo img {{
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+    }}
+    </style>
+
+    <div class="top-right-logo">
+        <img src="{logo_url_or_path}" alt="logo"/>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# -----------------------------
+# Your page content
+# -----------------------------
 st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
