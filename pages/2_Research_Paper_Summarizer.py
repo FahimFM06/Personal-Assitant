@@ -1,14 +1,15 @@
 import os
+import re
+import requests
 import streamlit as st
+from bs4 import BeautifulSoup
 from pypdf import PdfReader
+from youtube_transcript_api import YouTubeTranscriptApi
 
 st.set_page_config(page_title="Research Paper Summarizer", page_icon="📄", layout="wide")
 
 # =========================================================
 # THEMES
-# - Cloud (Light): light widgets + BLACK text everywhere
-# - Midnight (Dark)
-# - Night Mode
 # =========================================================
 THEMES = {
     "Cloud (Light)": {
@@ -93,6 +94,13 @@ SUMMARY_STYLES = [
     "Explain Like a Student",
 ]
 
+INPUT_TYPES = [
+    "Paste text",
+    "Upload PDF",
+    "Website URL",
+    "YouTube URL",
+]
+
 # -----------------------------
 # Session state
 # -----------------------------
@@ -116,6 +124,17 @@ if "summary_temperature" not in st.session_state:
 
 if "summary_max_tokens" not in st.session_state:
     st.session_state.summary_max_tokens = 900
+
+if "source_type" not in st.session_state:
+    st.session_state.source_type = INPUT_TYPES[0]
+
+if "source_url" not in st.session_state:
+    st.session_state.source_url = ""
+
+if "qa_messages_doc" not in st.session_state:
+    st.session_state.qa_messages_doc = [
+        {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
+    ]
 
 T = THEMES[st.session_state.theme_name]
 
@@ -200,7 +219,6 @@ st.markdown(
         margin-bottom: 14px;
     }}
 
-    /* Inputs */
     .stTextArea textarea,
     .stTextInput input {{
         background: var(--input-bg) !important;
@@ -209,12 +227,6 @@ st.markdown(
         border-radius: 14px !important;
     }}
 
-    .stFileUploader {{
-        background: transparent !important;
-        color: var(--text) !important;
-    }}
-
-    /* Selectbox */
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
         border: 1px solid var(--border) !important;
@@ -243,7 +255,6 @@ st.markdown(
         background: rgba(100, 116, 139, 0.12) !important;
     }}
 
-    /* Popover button */
     button[data-testid="stPopoverButton"] {{
         background: var(--widget-bg) !important;
         color: var(--widget-text) !important;
@@ -251,7 +262,6 @@ st.markdown(
         border-radius: 12px !important;
     }}
 
-    /* Buttons */
     .stButton > button {{
         background: var(--btn-bg) !important;
         color: var(--btn-text) !important;
@@ -270,13 +280,22 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    .stCaption {{
-        color: var(--muted) !important;
+    div[data-testid="stChatMessage"] * {{
+        color: var(--text) !important;
     }}
 
-    .small-muted {{
+    div[data-testid="stChatInput"] > div {{
+        border-radius: 14px !important;
+        border: 1px solid var(--border) !important;
+        background: var(--input-bg) !important;
+    }}
+
+    div[data-testid="stChatInput"] textarea {{
+        color: var(--text) !important;
+    }}
+
+    .stCaption {{
         color: var(--muted) !important;
-        font-size: 0.92rem;
     }}
     </style>
     """,
@@ -291,79 +310,125 @@ def go_back():
 
 
 def extract_text_from_pdf(uploaded_file) -> str:
-    """
-    Read text from an uploaded PDF.
-    """
     reader = PdfReader(uploaded_file)
-    all_text = []
-
+    texts = []
     for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            all_text.append(page_text)
+        text = page.extract_text()
+        if text:
+            texts.append(text)
+    return "\n".join(texts).strip()
 
-    return "\n".join(all_text).strip()
+
+def clean_text(text: str) -> str:
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return text.strip()
 
 
-def build_summary_prompt(paper_text: str, summary_style: str) -> str:
-    """
-    Create the prompt based on the selected summary style.
-    """
+def extract_text_from_website(url: str) -> str:
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    response = requests.get(url, headers=headers, timeout=25)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    for tag in soup(["script", "style", "noscript", "header", "footer", "svg"]):
+        tag.decompose()
+
+    texts = soup.stripped_strings
+    joined = "\n".join(texts)
+    return clean_text(joined)
+
+
+def get_youtube_video_id(url: str) -> str:
+    patterns = [
+        r"v=([a-zA-Z0-9_-]{11})",
+        r"youtu\.be/([a-zA-Z0-9_-]{11})",
+        r"youtube\.com/embed/([a-zA-Z0-9_-]{11})",
+        r"youtube\.com/shorts/([a-zA-Z0-9_-]{11})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def extract_text_from_youtube(url: str) -> str:
+    video_id = get_youtube_video_id(url)
+    if not video_id:
+        raise ValueError("Could not detect a valid YouTube video ID from the link.")
+
+    transcript = YouTubeTranscriptApi.get_transcript(video_id)
+    full_text = " ".join([item["text"] for item in transcript])
+    return clean_text(full_text)
+
+
+def build_summary_prompt(source_text: str, summary_style: str) -> str:
     if summary_style == "Short Summary":
         instruction = """
-Summarize this research paper in a short and clear way.
-Keep it easy to read.
+Summarize this content in a short and clear way.
 Include:
 1. main topic
-2. objective
-3. method
-4. result
+2. objective or purpose
+3. key ideas
+4. result or main takeaway
 5. why it matters
 """
     elif summary_style == "Detailed Summary":
         instruction = """
-Summarize this research paper in a detailed but clear way.
+Summarize this content in a detailed but clear way.
 Include:
-1. research problem
-2. objective
-3. methodology
-4. data or dataset if available
-5. key findings
-6. limitations
-7. conclusion
+1. main topic
+2. important sections
+3. key arguments or methods
+4. major results or findings
+5. conclusion
 """
     elif summary_style == "Bullet Points":
         instruction = """
-Summarize this research paper using bullet points.
+Summarize this content using bullet points.
 Include:
 - topic
-- objective
-- method
-- dataset or source
-- key findings
+- purpose
+- important ideas
+- main findings
 - conclusion
 """
     else:
         instruction = """
-Explain this research paper like I am a student.
+Explain this content like I am a student.
 Use simple language.
 Avoid difficult words where possible.
 """
 
     return f"""
-You are a helpful academic research assistant.
+You are a helpful summarization assistant.
 
 {instruction}
 
-Research paper text:
-{paper_text}
+Content:
+{source_text}
 """
 
 
-def groq_summary(prompt: str, model_id: str, temperature: float, max_tokens: int) -> str:
-    """
-    Generate summary using Groq.
-    """
+def build_qa_messages(source_text: str, chat_history: list) -> list:
+    system_prompt = f"""
+You are a document and link assistant.
+
+Answer only from the provided content below.
+If the answer is not clearly available in the content, say:
+"I could not find that clearly in the provided content."
+
+Provided content:
+{source_text}
+"""
+    return [{"role": "system", "content": system_prompt}] + chat_history
+
+
+def call_groq(messages: list, model_id: str, temperature: float, max_tokens: int) -> str:
     try:
         from groq import Groq
     except Exception:
@@ -377,16 +442,35 @@ def groq_summary(prompt: str, model_id: str, temperature: float, max_tokens: int
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
             model=model_id,
-            messages=[
-                {"role": "system", "content": "You are a helpful research paper summarizer."},
-                {"role": "user", "content": prompt},
-            ],
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
         )
         return response.choices[0].message.content
     except Exception as e:
         return f"Error calling Groq: {e}"
+
+
+def load_source_text(input_type: str, pasted_text: str, url_value: str, pdf_file) -> str:
+    if input_type == "Paste text":
+        return clean_text(pasted_text)
+
+    if input_type == "Upload PDF":
+        if pdf_file is None:
+            raise ValueError("Please upload a PDF file first.")
+        return extract_text_from_pdf(pdf_file)
+
+    if input_type == "Website URL":
+        if not url_value.strip():
+            raise ValueError("Please enter a website URL first.")
+        return extract_text_from_website(url_value.strip())
+
+    if input_type == "YouTube URL":
+        if not url_value.strip():
+            raise ValueError("Please enter a YouTube URL first.")
+        return extract_text_from_youtube(url_value.strip())
+
+    return ""
 
 
 # =========================================================
@@ -404,7 +488,7 @@ with top_left:
     with title_col:
         st.markdown('<div class="page-title">Research Paper Summarizer</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="page-sub">Upload a PDF or paste text and generate a clean summary.</div>',
+            '<div class="page-sub">Summarize and ask questions from PDF, website, YouTube link, or pasted text.</div>',
             unsafe_allow_html=True
         )
 
@@ -422,78 +506,138 @@ with top_right:
 left_col, right_col = st.columns([3, 1], gap="large")
 
 with left_col:
-    input_tab, output_tab = st.tabs(["Input", "Summary Output"])
+    tab1, tab2, tab3 = st.tabs(["Input", "Summary Output", "Chat with Content"])
 
-    with input_tab:
+    with tab1:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
-        st.markdown("**Choose input type**")
 
+        st.markdown("**Choose input type**")
         input_type = st.radio(
             "Choose input type",
-            ["Paste paper text / abstract", "Upload PDF"],
+            INPUT_TYPES,
+            index=INPUT_TYPES.index(st.session_state.source_type),
             horizontal=True,
             label_visibility="collapsed"
         )
+        st.session_state.source_type = input_type
 
-        if input_type == "Paste paper text / abstract":
-            new_text = st.text_area(
-                "Paper text",
+        uploaded_pdf = None
+
+        if input_type == "Paste text":
+            pasted = st.text_area(
+                "Paste text",
                 value=st.session_state.paper_text,
                 height=320,
-                placeholder="Paste your research paper abstract or full text here..."
+                placeholder="Paste paper text, notes, article text, or any content here..."
             )
-            st.session_state.paper_text = new_text
-        else:
-            uploaded_pdf = st.file_uploader("Upload research paper PDF", type=["pdf"])
-            if uploaded_pdf is not None:
-                try:
-                    extracted = extract_text_from_pdf(uploaded_pdf)
-                    if extracted:
-                        st.session_state.paper_text = extracted
-                        st.success("PDF text extracted successfully.")
-                    else:
-                        st.warning("Could not extract text from this PDF.")
-                except Exception as e:
-                    st.error(f"PDF reading failed: {e}")
+            st.session_state.paper_text = pasted
 
+        elif input_type == "Upload PDF":
+            uploaded_pdf = st.file_uploader("Upload PDF", type=["pdf"])
             if st.session_state.paper_text:
-                with st.expander("Preview extracted text"):
+                with st.expander("Preview current loaded text"):
                     preview_text = st.session_state.paper_text[:4000]
                     if len(st.session_state.paper_text) > 4000:
                         preview_text += "\n\n..."
                     st.write(preview_text)
 
-        btn1, btn2 = st.columns(2)
+        elif input_type == "Website URL":
+            url_value = st.text_input(
+                "Website URL",
+                value=st.session_state.source_url,
+                placeholder="https://example.com/article"
+            )
+            st.session_state.source_url = url_value
+
+        elif input_type == "YouTube URL":
+            url_value = st.text_input(
+                "YouTube URL",
+                value=st.session_state.source_url,
+                placeholder="https://www.youtube.com/watch?v=..."
+            )
+            st.session_state.source_url = url_value
+
+        btn1, btn2, btn3 = st.columns(3)
 
         with btn1:
-            if st.button("📄 Generate Summary", use_container_width=True):
-                if not st.session_state.paper_text.strip():
-                    st.error("Please paste some paper text or upload a PDF first.")
-                else:
-                    model_id = MODEL_MAP.get(st.session_state.summ_model_name, "llama-3.3-70b-versatile")
-                    prompt = build_summary_prompt(
-                        st.session_state.paper_text,
-                        st.session_state.summary_style
-                    )
-
-                    with st.spinner("Generating summary..."):
-                        result = groq_summary(
-                            prompt=prompt,
-                            model_id=model_id,
-                            temperature=st.session_state.summary_temperature,
-                            max_tokens=st.session_state.summary_max_tokens
+            if st.button("📥 Load Content", use_container_width=True):
+                try:
+                    if input_type == "Paste text":
+                        source_text = load_source_text(
+                            input_type=input_type,
+                            pasted_text=st.session_state.paper_text,
+                            url_value="",
+                            pdf_file=None
                         )
-                    st.session_state.summary_output = result
-                    st.rerun()
+                    elif input_type == "Upload PDF":
+                        source_text = load_source_text(
+                            input_type=input_type,
+                            pasted_text="",
+                            url_value="",
+                            pdf_file=uploaded_pdf
+                        )
+                    else:
+                        source_text = load_source_text(
+                            input_type=input_type,
+                            pasted_text="",
+                            url_value=st.session_state.source_url,
+                            pdf_file=None
+                        )
+
+                    if not source_text:
+                        st.error("No content was found.")
+                    else:
+                        st.session_state.paper_text = source_text
+                        st.success("Content loaded successfully.")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Could not load content: {e}")
 
         with btn2:
-            if st.button("🧹 Clear Text", use_container_width=True):
+            if st.button("📄 Generate Summary", use_container_width=True):
+                try:
+                    source_text = st.session_state.paper_text.strip()
+                    if not source_text:
+                        st.error("Please load content first.")
+                    else:
+                        model_id = MODEL_MAP.get(st.session_state.summ_model_name, "llama-3.3-70b-versatile")
+                        prompt = build_summary_prompt(source_text, st.session_state.summary_style)
+
+                        with st.spinner("Generating summary..."):
+                            result = call_groq(
+                                messages=[
+                                    {"role": "system", "content": "You are a helpful summarization assistant."},
+                                    {"role": "user", "content": prompt}
+                                ],
+                                model_id=model_id,
+                                temperature=st.session_state.summary_temperature,
+                                max_tokens=st.session_state.summary_max_tokens
+                            )
+                        st.session_state.summary_output = result
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Summary generation failed: {e}")
+
+        with btn3:
+            if st.button("🧹 Clear Content", use_container_width=True):
                 st.session_state.paper_text = ""
+                st.session_state.source_url = ""
+                st.session_state.summary_output = ""
+                st.session_state.qa_messages_doc = [
+                    {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
+                ]
                 st.rerun()
+
+        if st.session_state.paper_text:
+            st.markdown("**Loaded Content Preview**")
+            preview = st.session_state.paper_text[:5000]
+            if len(st.session_state.paper_text) > 5000:
+                preview += "\n\n..."
+            st.text_area("Preview", value=preview, height=240, disabled=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with output_tab:
+    with tab2:
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         if st.session_state.summary_output:
             st.markdown(st.session_state.summary_output)
@@ -505,10 +649,44 @@ with left_col:
         st.download_button(
             "⬇ Download Summary",
             data=download_text,
-            file_name="research_paper_summary.txt",
+            file_name="content_summary.txt",
             mime="text/plain",
             use_container_width=False
         )
+
+    with tab3:
+        st.markdown('<div class="content-card">', unsafe_allow_html=True)
+
+        if not st.session_state.paper_text.strip():
+            st.info("Load a PDF, website, YouTube link, or pasted text first. Then you can ask questions here.")
+        else:
+            for msg in st.session_state.qa_messages_doc:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+
+            user_q = st.chat_input("Ask a question based on the loaded content...")
+
+            if user_q:
+                st.session_state.qa_messages_doc.append({"role": "user", "content": user_q})
+
+                model_id = MODEL_MAP.get(st.session_state.summ_model_name, "llama-3.3-70b-versatile")
+                api_messages = build_qa_messages(
+                    source_text=st.session_state.paper_text,
+                    chat_history=st.session_state.qa_messages_doc
+                )
+
+                with st.spinner("Thinking..."):
+                    answer = call_groq(
+                        messages=api_messages,
+                        model_id=model_id,
+                        temperature=st.session_state.summary_temperature,
+                        max_tokens=st.session_state.summary_max_tokens
+                    )
+
+                st.session_state.qa_messages_doc.append({"role": "assistant", "content": answer})
+                st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.markdown('<div class="right-middle">', unsafe_allow_html=True)
@@ -562,9 +740,13 @@ with right_col:
     a, b = st.columns(2)
 
     with a:
-        if st.button("🆕 New summary", use_container_width=True):
+        if st.button("🆕 New session", use_container_width=True):
             st.session_state.paper_text = ""
+            st.session_state.source_url = ""
             st.session_state.summary_output = ""
+            st.session_state.qa_messages_doc = [
+                {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
+            ]
             st.rerun()
 
     with b:
@@ -573,7 +755,6 @@ with right_col:
             st.rerun()
 
     if st.button("🔁 Reset session", use_container_width=True):
-        keys_to_keep = []
         st.session_state.clear()
         st.rerun()
 
