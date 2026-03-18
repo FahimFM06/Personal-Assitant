@@ -211,3 +211,12 @@ GROQ_MODELS = {
     "GPT-OSS 120B": "openai/gpt-oss-120b",
     "GPT-OSS 20B": "openai/gpt-oss-20b",
 }
+
+
+## Hugging Face Model
+These models are used across different pages:
+
+```python
+HF_MODELS = {
+    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct"
+}
