@@ -212,7 +212,7 @@ GROQ_MODELS = {
     "GPT-OSS 20B": "openai/gpt-oss-20b",
 }
 
-
+```python
 ## Hugging Face Model
 These models are used across different pages:
 
