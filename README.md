@@ -201,7 +201,7 @@ This makes the entire app look consistent and more professional.
 
 # Models Used
 
-## Groq Models
+## Groq & Hugging Face Models
 These models are used across different pages:
 
 ```python
@@ -212,11 +212,6 @@ GROQ_MODELS = {
     "GPT-OSS 20B": "openai/gpt-oss-20b",
 }
 
-```python
-## Hugging Face Model
-These models are used across different pages:
-
-```python
 HF_MODELS = {
     "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct"
 }
