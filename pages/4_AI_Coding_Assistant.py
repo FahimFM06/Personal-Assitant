@@ -1,321 +1,408 @@
-import json
+import os
 import streamlit as st
-from groq import Groq
-from huggingface_hub import InferenceClient
 
-# ---------------------------------------------------
-# Page config
-# ---------------------------------------------------
-st.set_page_config(
-    page_title="AI Coding Assistant",
-    page_icon="💻",
-    layout="wide"
-)
+st.set_page_config(page_title="AI Coding Assistant", page_icon="💻", layout="wide")
 
-# ---------------------------------------------------
-# Auto load API keys from Streamlit secrets
-# ---------------------------------------------------
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
-HF_TOKEN = st.secrets.get("HF_TOKEN", "")
+# =========================================================
+# THEMES
+# =========================================================
+THEMES = {
+    "Cloud (Light)": {
+        "app_bg": "#f6f7fb",
+        "panel_bg": "#ffffff",
+        "title": "#0f172a",
+        "sub": "#475569",
+        "border": "#e5e7eb",
+        "text": "#0f172a",
+        "muted": "#64748b",
+        "shadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
+        "input_bg": "#ffffff",
+        "widget_bg": "#ffffff",
+        "widget_text": "#0f172a",
+        "menu_bg": "#ffffff",
+        "menu_text": "#0f172a",
+        "btn_bg": "#111827",
+        "btn_text": "#ffffff",
+        "btn_border": "#111827",
+        "card_bg": "#ffffff",
+    },
+    "Midnight (Dark)": {
+        "app_bg": "#0b1220",
+        "panel_bg": "#0f172a",
+        "title": "#e5e7eb",
+        "sub": "#94a3b8",
+        "border": "#1f2a44",
+        "text": "#e5e7eb",
+        "muted": "#94a3b8",
+        "shadow": "0 10px 26px rgba(0,0,0,0.45)",
+        "input_bg": "#0f172a",
+        "widget_bg": "#111827",
+        "widget_text": "#e5e7eb",
+        "menu_bg": "#0b1220",
+        "menu_text": "#e5e7eb",
+        "btn_bg": "#111827",
+        "btn_text": "#e5e7eb",
+        "btn_border": "#1f2a44",
+        "card_bg": "#111827",
+    },
+    "Night Mode": {
+        "app_bg": """
+            radial-gradient(ellipse at center, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.85) 100%),
+            repeating-linear-gradient(90deg,
+                rgba(255,255,255,0.06) 0px,
+                rgba(255,255,255,0.06) 1px,
+                rgba(0,0,0,0.00) 2px,
+                rgba(0,0,0,0.00) 4px
+            ),
+            linear-gradient(180deg, #0a0a0b 0%, #111214 35%, #070708 100%)
+        """,
+        "panel_bg": "rgba(20, 20, 22, 0.72)",
+        "title": "#f3f4f6",
+        "sub": "#cbd5e1",
+        "border": "rgba(255,255,255,0.10)",
+        "text": "#f3f4f6",
+        "muted": "#cbd5e1",
+        "shadow": "0 12px 30px rgba(0,0,0,0.55)",
+        "input_bg": "rgba(20, 20, 22, 0.72)",
+        "widget_bg": "rgba(20, 20, 22, 0.72)",
+        "widget_text": "#f3f4f6",
+        "menu_bg": "rgba(20, 20, 22, 0.92)",
+        "menu_text": "#f3f4f6",
+        "btn_bg": "rgba(20, 20, 22, 0.72)",
+        "btn_text": "#f3f4f6",
+        "btn_border": "rgba(255,255,255,0.12)",
+        "card_bg": "rgba(20, 20, 22, 0.72)",
+    },
+}
 
-# ---------------------------------------------------
-# Model lists
-# ---------------------------------------------------
-GROQ_MODELS = {
+MODELS_UI = ["Llama 3.3 70B", "Llama 3.1 8B", "Gemma 2 9B"]
+MODEL_MAP = {
     "Llama 3.3 70B": "llama-3.3-70b-versatile",
     "Llama 3.1 8B": "llama-3.1-8b-instant",
-    "GPT-OSS 120B": "openai/gpt-oss-120b",
-    "GPT-OSS 20B": "openai/gpt-oss-20b",
+    "Gemma 2 9B": "gemma2-9b-it",
 }
 
-
-HF_MODELS = {
-    "Qwen 2.5 7B Instruct": "Qwen/Qwen2.5-7B-Instruct"
-}
-
-# ---------------------------------------------------
+# -----------------------------
 # Session state
-# ---------------------------------------------------
+# -----------------------------
+if "theme_name" not in st.session_state:
+    st.session_state.theme_name = "Midnight (Dark)"
+
+if "code_model_name" not in st.session_state:
+    st.session_state.code_model_name = MODELS_UI[0]
+
 if "code_messages" not in st.session_state:
     st.session_state.code_messages = [
         {"role": "assistant", "content": "Hello, how can I help you with coding today?"}
     ]
 
-if "code_provider" not in st.session_state:
-    st.session_state.code_provider = "Groq"
-
-if "code_model_id" not in st.session_state:
-    st.session_state.code_model_id = GROQ_MODELS["Llama 3.3 70B (Best quality)"]
-
 if "code_temperature" not in st.session_state:
     st.session_state.code_temperature = 0.2
 
 if "code_max_tokens" not in st.session_state:
-    st.session_state.code_max_tokens = 900
+    st.session_state.code_max_tokens = 1200
 
-# ---------------------------------------------------
-# Helpers
-# ---------------------------------------------------
-def build_system_prompt():
-    return """
-    You are an AI Coding Assistant.
+T = THEMES[st.session_state.theme_name]
 
-    Rules:
-    1. Help with Python, Streamlit, SQL, JavaScript, and machine learning code.
-    2. When writing code, make it clean and beginner-friendly.
-    3. Add comments only when useful.
-    4. If debugging, explain the bug and then show the fixed code.
-    5. If the user asks for full code, give complete runnable code.
-    6. Prefer practical answers over theory.
-    """
-
-def ask_groq(messages, model_id, temperature, max_tokens):
-    client = Groq(api_key=GROQ_API_KEY)
-
-    api_messages = [{"role": "system", "content": build_system_prompt()}]
-    api_messages.extend(messages)
-
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=api_messages,
-        temperature=temperature,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content
-
-def ask_huggingface(messages, model_id, temperature, max_tokens):
-    client = InferenceClient(api_key=HF_TOKEN)
-
-    api_messages = [{"role": "system", "content": build_system_prompt()}]
-    api_messages.extend(messages)
-
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=api_messages,
-        temperature=temperature,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content
-
-def export_chat(messages):
-    return json.dumps(messages, indent=2, ensure_ascii=False)
-
-# ---------------------------------------------------
+# -----------------------------
 # CSS
-# ---------------------------------------------------
-st.markdown("""
-<style>
-.stApp {
-    background: #f6f7fb;
-}
+# -----------------------------
+st.markdown(
+    f"""
+    <style>
+    :root {{
+        --app-bg: {T["app_bg"]};
+        --panel-bg: {T["panel_bg"]};
+        --title: {T["title"]};
+        --sub: {T["sub"]};
+        --border: {T["border"]};
+        --text: {T["text"]};
+        --muted: {T["muted"]};
+        --shadow: {T["shadow"]};
+        --input-bg: {T["input_bg"]};
+        --widget-bg: {T["widget_bg"]};
+        --widget-text: {T["widget_text"]};
+        --menu-bg: {T["menu_bg"]};
+        --menu-text: {T["menu_text"]};
+        --btn-bg: {T["btn_bg"]};
+        --btn-text: {T["btn_text"]};
+        --btn-border: {T["btn_border"]};
+        --card-bg: {T["card_bg"]};
+    }}
 
-.main .block-container {
-    max-width: 1200px;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
+    .stApp {{
+        background: var(--app-bg) !important;
+        color: var(--text) !important;
+    }}
 
-.page-title {
-    font-size: 3rem;
-    font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 0.25rem;
-}
+    html, body, [class*="css"] {{
+        color: var(--text) !important;
+    }}
 
-.page-subtitle {
-    font-size: 1.05rem;
-    color: #64748b;
-    margin-bottom: 1.5rem;
-}
+    .main .block-container {{
+        max-width: 1300px;
+        padding-top: 1rem;
+        padding-bottom: 0.5rem;
+    }}
 
-.stButton > button {
-    border-radius: 14px;
-    height: 44px;
-    border: 1px solid #d1d5db;
-    background: white;
-}
+    header[data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
 
-.user-box {
-    background: #e5e7eb;
-    color: #111827;
-    padding: 14px 16px;
-    border-radius: 16px;
-    margin-bottom: 12px;
-    font-size: 1rem;
-}
+    .page-title {{
+        font-size: 2.0rem;
+        font-weight: 800;
+        color: var(--title) !important;
+        margin: 0 0 0.1rem 0;
+    }}
 
-.assistant-box {
-    background: #ffffff;
-    color: #111827;
-    padding: 14px 16px;
-    border-radius: 16px;
-    margin-bottom: 12px;
-    border: 1px solid #e5e7eb;
-    font-size: 1rem;
-}
+    .page-sub {{
+        color: var(--sub) !important;
+        margin: 0 0 0.8rem 0;
+        font-size: 0.95rem;
+    }}
 
-.role-label {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-}
+    .right-panel {{
+        background: var(--panel-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: var(--shadow) !important;
+        color: var(--text) !important;
+    }}
 
-.sidebar-note {
-    font-size: 0.92rem;
-    color: #6b7280;
-    margin-top: 0.25rem;
-}
-</style>
-""", unsafe_allow_html=True)
+    .right-middle {{
+        margin-top: 140px;
+    }}
 
-# ---------------------------------------------------
-# Layout
-# ---------------------------------------------------
-left_col, right_col = st.columns([4.8, 1.8], gap="large")
+    div[data-testid="stChatInput"] > div {{
+        border-radius: 14px !important;
+        border: 1px solid var(--border) !important;
+        background: var(--input-bg) !important;
+    }}
 
-with left_col:
-    top1, top2 = st.columns([1, 6])
+    div[data-testid="stChatInput"] textarea {{
+        color: var(--text) !important;
+    }}
 
-    with top1:
+    div[data-testid="stChatMessage"] * {{
+        color: var(--text) !important;
+    }}
+
+    div[data-testid="stSelectbox"] > div {{
+        background: var(--widget-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }}
+
+    div[data-testid="stSelectbox"] * {{
+        color: var(--widget-text) !important;
+    }}
+
+    div[role="listbox"] {{
+        background: var(--menu-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }}
+
+    div[role="listbox"] * {{
+        color: var(--menu-text) !important;
+    }}
+
+    div[role="option"] {{
+        background: transparent !important;
+    }}
+
+    div[role="option"]:hover {{
+        background: rgba(100, 116, 139, 0.12) !important;
+    }}
+
+    button[data-testid="stPopoverButton"] {{
+        background: var(--widget-bg) !important;
+        color: var(--widget-text) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }}
+
+    .stButton > button {{
+        background: var(--btn-bg) !important;
+        color: var(--btn-text) !important;
+        border: 1px solid var(--btn-border) !important;
+        border-radius: 12px !important;
+    }}
+
+    .stCaption {{
+        color: var(--muted) !important;
+    }}
+
+    .stSlider * {{
+        color: var(--text) !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# =========================================================
+# HELPERS
+# =========================================================
+def go_back():
+    st.switch_page("Home.py")
+
+
+def groq_code_reply(messages, model_id: str, temperature: float, max_tokens: int) -> str:
+    try:
+        from groq import Groq
+    except Exception:
+        return "Groq package not installed. Run: pip install groq"
+
+    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY", "")
+    if not api_key:
+        return "GROQ_API_KEY is missing. Add it in your environment variables or Streamlit secrets."
+
+    system_prompt = """
+You are an AI Coding Assistant.
+
+Rules:
+1. Help with Python, Streamlit, SQL, JavaScript, machine learning, and debugging.
+2. Give clear and beginner-friendly explanations.
+3. When writing code, provide clean and runnable code.
+4. If debugging, first explain the issue, then show the fixed version.
+5. Use markdown code blocks for code.
+6. Keep answers practical and structured.
+"""
+
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key)
+        api_messages = [{"role": "system", "content": system_prompt}] + messages
+
+        resp = client.chat.completions.create(
+            model=model_id,
+            messages=api_messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return resp.choices[0].message.content
+    except Exception as e:
+        return f"Error calling Groq: {e}"
+
+
+# =========================================================
+# TOP BAR
+# =========================================================
+top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
+
+with top_left:
+    back_col, title_col = st.columns([0.16, 0.84], vertical_alignment="center")
+
+    with back_col:
         if st.button("⬅ Back", use_container_width=True):
-            st.switch_page("Home.py")
+            go_back()
 
-    with top2:
+    with title_col:
         st.markdown('<div class="page-title">AI Coding Assistant</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="page-subtitle">Ask for code generation, debugging, explanations, refactoring, or Streamlit help.</div>',
+            '<div class="page-sub">Ask for code generation, debugging, explanation, refactoring, or Streamlit help.</div>',
             unsafe_allow_html=True
         )
 
-    b1, b2, b3 = st.columns(3)
+with top_right:
+    with st.popover("🎨 Theme ▾", use_container_width=True):
+        st.session_state.theme_name = st.selectbox(
+            "Theme",
+            list(THEMES.keys()),
+            index=list(THEMES.keys()).index(st.session_state.theme_name),
+        )
 
-    with b1:
+# =========================================================
+# MAIN AREA
+# =========================================================
+chat_col, right_col = st.columns([3, 1], gap="large")
+
+with chat_col:
+    for m in st.session_state.code_messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+with right_col:
+    st.markdown('<div class="right-middle">', unsafe_allow_html=True)
+    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
+
+    st.markdown("**Select Model**")
+    st.session_state.code_model_name = st.selectbox(
+        "Select Model",
+        MODELS_UI,
+        index=MODELS_UI.index(st.session_state.code_model_name),
+        label_visibility="collapsed",
+    )
+    st.caption("Groq models only")
+
+    st.divider()
+
+    st.markdown("**Temperature**")
+    st.session_state.code_temperature = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=st.session_state.code_temperature,
+        step=0.1,
+        label_visibility="collapsed",
+    )
+    st.caption(f"{st.session_state.code_temperature:.2f}")
+
+    st.markdown("**Max tokens**")
+    st.session_state.code_max_tokens = st.slider(
+        "Max tokens",
+        min_value=200,
+        max_value=4000,
+        value=st.session_state.code_max_tokens,
+        step=100,
+        label_visibility="collapsed",
+    )
+    st.caption(str(st.session_state.code_max_tokens))
+
+    st.divider()
+
+    a, b = st.columns(2)
+
+    with a:
         if st.button("🆕 New chat", use_container_width=True):
             st.session_state.code_messages = [
                 {"role": "assistant", "content": "Hello, how can I help you with coding today?"}
             ]
             st.rerun()
 
-    with b2:
-        if st.button("🗑 Delete last", use_container_width=True):
+    with b:
+        if st.button("🗑️ Delete last", use_container_width=True):
             if len(st.session_state.code_messages) > 1:
                 st.session_state.code_messages.pop()
                 if len(st.session_state.code_messages) > 1:
                     st.session_state.code_messages.pop()
             st.rerun()
 
-    with b3:
-        st.download_button(
-            "⬇ Export chat",
-            data=export_chat(st.session_state.code_messages),
-            file_name="ai_coding_assistant_chat.json",
-            mime="application/json",
-            use_container_width=True
-        )
-
-    st.write("")
-
-    for msg in st.session_state.code_messages:
-        if msg["role"] == "user":
-            st.markdown('<div class="role-label">👤 You</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="user-box">{msg["content"]}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="role-label">🤖 Assistant</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="assistant-box">{msg["content"]}</div>', unsafe_allow_html=True)
-
-    user_prompt = st.chat_input("Type your coding question...")
-
-    if user_prompt:
-        st.session_state.code_messages.append({"role": "user", "content": user_prompt})
-
-        try:
-            with st.spinner("Thinking..."):
-                if st.session_state.code_provider == "Groq":
-                    if not GROQ_API_KEY:
-                        st.error("Groq API key not found in Streamlit secrets.")
-                        st.stop()
-
-                    reply = ask_groq(
-                        messages=st.session_state.code_messages,
-                        model_id=st.session_state.code_model_id,
-                        temperature=st.session_state.code_temperature,
-                        max_tokens=st.session_state.code_max_tokens
-                    )
-                else:
-                    if not HF_TOKEN:
-                        st.error("HF token not found in Streamlit secrets.")
-                        st.stop()
-
-                    reply = ask_huggingface(
-                        messages=st.session_state.code_messages,
-                        model_id=st.session_state.code_model_id,
-                        temperature=st.session_state.code_temperature,
-                        max_tokens=st.session_state.code_max_tokens
-                    )
-
-            st.session_state.code_messages.append({"role": "assistant", "content": reply})
-            st.rerun()
-
-        except Exception as e:
-            st.error(f"Something went wrong: {e}")
-
-with right_col:
-    st.markdown("## Provider")
-    provider = st.selectbox(
-        "Choose provider",
-        ["Groq", "Hugging Face"],
-        index=0,
-        label_visibility="collapsed"
-    )
-    st.session_state.code_provider = provider
-
-    st.write("")
-
-    if provider == "Groq":
-        st.markdown("## Select Model")
-        model_name = st.selectbox(
-            "Groq model",
-            list(GROQ_MODELS.keys()),
-            label_visibility="collapsed"
-        )
-        st.session_state.code_model_id = GROQ_MODELS[model_name]
-        st.markdown('<div class="sidebar-note">Groq models only</div>', unsafe_allow_html=True)
-    else:
-        st.markdown("## Select Model")
-        model_name = st.selectbox(
-            "HF model",
-            list(HF_MODELS.keys()),
-            label_visibility="collapsed"
-        )
-        st.session_state.code_model_id = HF_MODELS[model_name]
-        st.markdown('<div class="sidebar-note">Free/open Hugging Face models</div>', unsafe_allow_html=True)
-
-    st.write("")
-    st.markdown("---")
-
-    temperature = st.slider(
-        "Temperature",
-        min_value=0.0,
-        max_value=1.0,
-        value=st.session_state.code_temperature,
-        step=0.1
-    )
-    st.session_state.code_temperature = temperature
-
-    max_tokens = st.slider(
-        "Max tokens",
-        min_value=200,
-        max_value=3000,
-        value=st.session_state.code_max_tokens,
-        step=100
-    )
-    st.session_state.code_max_tokens = max_tokens
-
-    st.write("")
-    st.markdown("---")
-
-    if st.button("🔄 Reset session", use_container_width=True):
-        st.session_state.code_messages = [
-            {"role": "assistant", "content": "Hello, how can I help you with coding today?"}
-        ]
+    if st.button("🔁 Reset session", use_container_width=True):
+        st.session_state.clear()
         st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# =========================================================
+# CHAT INPUT
+# =========================================================
+user_text = st.chat_input("Type your coding question...")
+
+if user_text:
+    st.session_state.code_messages.append({"role": "user", "content": user_text})
+
+    model_id = MODEL_MAP.get(st.session_state.code_model_name, "llama-3.3-70b-versatile")
+    answer = groq_code_reply(
+        messages=st.session_state.code_messages,
+        model_id=model_id,
+        temperature=st.session_state.code_temperature,
+        max_tokens=st.session_state.code_max_tokens,
+    )
+
+    st.session_state.code_messages.append({"role": "assistant", "content": answer})
+    st.rerun()
