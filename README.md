@@ -3,13 +3,13 @@
 A multi-page **Streamlit** application that combines several practical AI tools into one clean dashboard.  
 This project is designed for **students, researchers, and daily productivity use**. It includes tools for:
 
-- AI Research & Study Q&A
-- Research Paper Summarizer
-- Math & Statistics Solver
-- AI Coding Assistant
-- Weather Information
-- Smart Location Finder
-- AI News Analyzer
+- Study Chat
+- Paper Summary with Q&A
+- Math Solver
+- Code Assistant
+- Weather
+- Place Finder
+- News Insights
 
 The app uses **Groq models**, optional **Hugging Face models** on selected pages, free external APIs, and a consistent custom UI theme across all pages.
 
@@ -39,7 +39,7 @@ into one structured and good-looking web app.
 
 # Main Features
 
-## 1. AI Research & Study Q&A
+## 1. Study Chat
 A chatbot page for general academic and study-related questions.
 
 **What it does**
@@ -58,7 +58,7 @@ A chatbot page for general academic and study-related questions.
 
 ---
 
-## 2. Research Paper Summarizer
+## 2. Paper Summary with Q&A
 A content assistant page that can summarize and answer questions from:
 
 - pasted text
@@ -87,7 +87,7 @@ A content assistant page that can summarize and answer questions from:
 
 ---
 
-## 3. Math & Statistics Solver
+## 3. Math Solver
 A chatbot page focused on math and statistics.
 
 **What it does**
@@ -104,7 +104,7 @@ A chatbot page focused on math and statistics.
 
 ---
 
-## 4. AI Coding Assistant
+## 4. Code Assistant
 A coding-focused chatbot page.
 
 **What it does**
@@ -122,7 +122,7 @@ A coding-focused chatbot page.
 
 ---
 
-## 5. Weather Information
+## 5. Weather 
 A weather page that combines a real weather API with AI explanation.
 
 **What it does**
@@ -140,7 +140,7 @@ A weather page that combines a real weather API with AI explanation.
 
 ---
 
-## 6. Smart Location Finder
+## 6. Place Finder
 A location search page with map and AI summary.
 
 **What it does**
@@ -158,7 +158,7 @@ A location search page with map and AI summary.
 
 ---
 
-## 7. AI News Analyzer
+## 7. News Insights
 A news analysis page using NewsAPI and LLM summarization.
 
 **What it does**
