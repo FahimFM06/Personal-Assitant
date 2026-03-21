@@ -210,25 +210,25 @@ c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("🤖💬\nAI Research Study QA", use_container_width=True, key="qa"):
+    if st.button("Study Chat", use_container_width=True, key="qa"):
         go_to("pages/1_AI_Research_Study_QA.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c2:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("📄🧠\nResearch Paper Summarizer", use_container_width=True, key="summ"):
+    if st.button("Paper Summary with Q&A", use_container_width=True, key="summ"):
         go_to("pages/2_Research_Paper_Summarizer.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c3:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("📊➗\nMath & Statistics Solver", use_container_width=True, key="math"):
+    if st.button("Math Solver", use_container_width=True, key="math"):
         go_to("pages/3_Math_Statistics_Solver.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c4:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("💻🧠\nAI Coding Assistant", use_container_width=True, key="code"):
+    if st.button("Code Assistant", use_container_width=True, key="code"):
         go_to("pages/4_AI_Coding_Assistant.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -236,19 +236,19 @@ c5, c6, c7 = st.columns(3)
 
 with c5:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("🌦️📍\nWeather Information", use_container_width=True, key="weather"):
+    if st.button("Weather", use_container_width=True, key="weather"):
         go_to("pages/5_Weather_Information.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c6:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("🗺️📍\nSmart Location Finder", use_container_width=True, key="location"):
+    if st.button("Place Finder", use_container_width=True, key="location"):
         go_to("pages/6_Smart_Location_Finder.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with c7:
     st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("📰🤖\nAI News Analyzer", use_container_width=True, key="news"):
+    if st.button("News Insights", use_container_width=True, key="news"):
         go_to("pages/7_AI_News_Analyzer.py")
     st.markdown('</div>', unsafe_allow_html=True)
 
