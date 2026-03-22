@@ -1,13 +1,8 @@
 import streamlit as st
+import base64
+from pathlib import Path
 
 st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
-
-# =========================================================
-# 3 THEMES ONLY:
-# 1) Cloud (Light)
-# 2) Midnight (Dark)
-# 3) Night Mode (your photo style: dark brushed/metal look)
-# =========================================================
 
 THEMES = {
     "Cloud (Light)": {
@@ -22,6 +17,7 @@ THEMES = {
         "info_bg": "#dbeafe",
         "info_border": "#bfdbfe",
         "info_text": "#1d4ed8",
+        "label_text": "#0f172a",
     },
     "Midnight (Dark)": {
         "app_bg": "#0b1220",
@@ -35,10 +31,9 @@ THEMES = {
         "info_bg": "rgba(56, 189, 248, 0.10)",
         "info_border": "rgba(56, 189, 248, 0.25)",
         "info_text": "#e5e7eb",
+        "label_text": "#e5e7eb",
     },
-    # Night Mode = inspired by your uploaded dark “brushed metal” photo
     "Night Mode": {
-        # CSS background with subtle vertical brushed lines + vignette
         "app_bg": """
             radial-gradient(ellipse at center, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.85) 100%),
             repeating-linear-gradient(90deg,
@@ -59,21 +54,42 @@ THEMES = {
         "info_bg": "rgba(255,255,255,0.06)",
         "info_border": "rgba(255,255,255,0.12)",
         "info_text": "#e5e7eb",
+        "label_text": "#f3f4f6",
     },
 }
 
-# default theme
 if "theme_name" not in st.session_state:
     st.session_state.theme_name = "Cloud (Light)"
 
-# Top-right logo (URL). If you want local image, tell me and I’ll give base64 version.
-LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Robot_icon.svg/256px-Robot_icon.svg.png"
-
 T = THEMES[st.session_state.theme_name]
 
-# -----------------------------
-# Apply CSS (theme + logo + buttons + info box)
-# -----------------------------
+# -------------------------------------------------
+# Logo image paths inside your GitHub project
+# -------------------------------------------------
+IMG_STUDY = "assets/logos/study_chat.png"
+IMG_PAPER = "assets/logos/paper_summary.png"
+IMG_MATH = "assets/logos/math_solver.png"
+IMG_CODE = "assets/logos/code_assistant.png"
+IMG_WEATHER = "assets/logos/weather.png"
+IMG_LOCATION = "assets/logos/place_finder.png"
+IMG_NEWS = "assets/logos/news_insights.png"
+
+
+def img_to_base64(img_path: str) -> str:
+    path = Path(img_path)
+    if not path.exists():
+        return ""
+    return base64.b64encode(path.read_bytes()).decode()
+
+
+study_b64 = img_to_base64(IMG_STUDY)
+paper_b64 = img_to_base64(IMG_PAPER)
+math_b64 = img_to_base64(IMG_MATH)
+code_b64 = img_to_base64(IMG_CODE)
+weather_b64 = img_to_base64(IMG_WEATHER)
+location_b64 = img_to_base64(IMG_LOCATION)
+news_b64 = img_to_base64(IMG_NEWS)
+
 st.markdown(
     f"""
     <style>
@@ -89,6 +105,7 @@ st.markdown(
         --info-bg: {T["info_bg"]};
         --info-border: {T["info_border"]};
         --info-text: {T["info_text"]};
+        --label-text: {T["label_text"]};
     }}
 
     .stApp {{
@@ -96,7 +113,7 @@ st.markdown(
     }}
 
     .main .block-container {{
-        max-width: 1200px;
+        max-width: 1250px;
         padding-top: 2rem;
         padding-bottom: 2rem;
     }}
@@ -116,74 +133,96 @@ st.markdown(
         margin-bottom: 2rem;
     }}
 
-    /* Card button styling */
-    .card-btn button {{
-        height: 150px !important;
-        border-radius: 22px !important;
-        border: 1px solid var(--card-border) !important;
-        background: var(--card-bg) !important;
-        box-shadow: var(--card-shadow) !important;
-        font-size: 20px !important;
-        font-weight: 700 !important;
-        color: var(--btn-text) !important;
-        white-space: pre-line !important;
-        transition: all 0.12s ease-in-out !important;
-    }}
-
-    .card-btn button:hover {{
-        box-shadow: var(--card-shadow-hover) !important;
-        transform: translateY(-1px) !important;
-    }}
-
-    /* Make Streamlit info box match theme */
     div[data-testid="stAlert"] {{
         background: var(--info-bg) !important;
         border: 1px solid var(--info-border) !important;
     }}
+
     div[data-testid="stAlert"] * {{
         color: var(--info-text) !important;
     }}
 
-    /* Top-right logo */
-    .top-right-logo {{
-        position: fixed;
-        top: 12px;
-        right: 16px;
-        z-index: 9999;
-        width: 42px;
-        height: 42px;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.75);
-        border: 1px solid rgba(229,231,235,0.9);
-        backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        pointer-events: none; /* do not block clicks */
+    .logo-card {{
+        text-align: center;
+        margin-bottom: 22px;
     }}
-    .top-right-logo img {{
-        width: 28px;
-        height: 28px;
-        object-fit: contain;
+
+    .logo-label {{
+        margin-top: 10px;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: var(--label-text);
+        text-align: center;
+    }}
+
+    .logo-btn div[data-testid="stButton"] > button {{
+        width: 100% !important;
+        height: 185px !important;
+        border-radius: 24px !important;
+        border: 1px solid var(--card-border) !important;
+        background-color: var(--card-bg) !important;
+        box-shadow: var(--card-shadow) !important;
+        background-repeat: no-repeat !important;
+        background-position: center center !important;
+        background-size: contain !important;
+        color: transparent !important;
+        transition: all 0.15s ease-in-out !important;
+        padding: 0 !important;
+    }}
+
+    .logo-btn div[data-testid="stButton"] > button:hover {{
+        transform: translateY(-2px) !important;
+        box-shadow: var(--card-shadow-hover) !important;
+        border: 1px solid rgba(59,130,246,0.45) !important;
+    }}
+
+    .logo-btn div[data-testid="stButton"] > button p {{
+        color: transparent !important;
+    }}
+
+    .study-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{study_b64}");
+    }}
+
+    .paper-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{paper_b64}");
+    }}
+
+    .math-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{math_b64}");
+    }}
+
+    .code-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{code_b64}");
+    }}
+
+    .weather-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{weather_b64}");
+    }}
+
+    .location-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{location_b64}");
+    }}
+
+    .news-btn div[data-testid="stButton"] > button {{
+        background-image: url("data:image/png;base64,{news_b64}");
     }}
     </style>
-
-    <div class="top-right-logo">
-        <img src="{LOGO_URL}" alt="logo"/>
-    </div>
     """,
     unsafe_allow_html=True
 )
 
-# -----------------------------
-# Header + Theme button (Option A: Popover)
-# -----------------------------
 header_left, header_right = st.columns([0.78, 0.22], vertical_alignment="center")
 
 with header_left:
-    st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="title-text">AI Research & Productivity Dashboard</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        '<div class="sub-text">Select one tool from the dashboard</div>',
+        unsafe_allow_html=True
+    )
 
 with header_right:
     with st.popover("🎨 Theme", use_container_width=True):
@@ -193,9 +232,6 @@ with header_right:
             index=list(THEMES.keys()).index(st.session_state.theme_name),
         )
 
-# -----------------------------
-# Navigation helper
-# -----------------------------
 def go_to(page_path: str):
     try:
         st.switch_page(page_path)
@@ -203,52 +239,35 @@ def go_to(page_path: str):
         st.error(f"Page not found: {page_path}")
         st.stop()
 
-# -----------------------------
-# Dashboard buttons
-# -----------------------------
+def logo_button(label: str, key: str, page_path: str, css_class: str):
+    st.markdown(f'<div class="logo-card logo-btn {css_class}">', unsafe_allow_html=True)
+    clicked = st.button(" ", key=key, use_container_width=True)
+    st.markdown(f'<div class="logo-label">{label}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    if clicked:
+        go_to(page_path)
+
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Study Chat", use_container_width=True, key="qa"):
-        go_to("pages/1_AI_Research_Study_QA.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Study Chat", "qa", "pages/1_AI_Research_Study_QA.py", "study-btn")
 
 with c2:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Paper Summary with Q&A", use_container_width=True, key="summ"):
-        go_to("pages/2_Research_Paper_Summarizer.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Paper Summary with Q&A", "summ", "pages/2_Research_Paper_Summarizer.py", "paper-btn")
 
 with c3:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Math Solver", use_container_width=True, key="math"):
-        go_to("pages/3_Math_Statistics_Solver.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Math Solver", "math", "pages/3_Math_Statistics_Solver.py", "math-btn")
 
 with c4:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Code Assistant", use_container_width=True, key="code"):
-        go_to("pages/4_AI_Coding_Assistant.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Code Assistant", "code", "pages/4_AI_Coding_Assistant.py", "code-btn")
 
 c5, c6, c7 = st.columns(3)
 
 with c5:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Weather", use_container_width=True, key="weather"):
-        go_to("pages/5_Weather_Information.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Weather", "weather", "pages/5_Weather_Information.py", "weather-btn")
 
 with c6:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("Place Finder", use_container_width=True, key="location"):
-        go_to("pages/6_Smart_Location_Finder.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+    logo_button("Place Finder", "location", "pages/6_Smart_Location_Finder.py", "location-btn")
 
 with c7:
-    st.markdown('<div class="card-btn">', unsafe_allow_html=True)
-    if st.button("News Insights", use_container_width=True, key="news"):
-        go_to("pages/7_AI_News_Analyzer.py")
-    st.markdown('</div>', unsafe_allow_html=True)
-
+    logo_button("News Insights", "news", "pages/7_AI_News_Analyzer.py", "news-btn")
