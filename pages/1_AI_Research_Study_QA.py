@@ -5,9 +5,6 @@ st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
 
 # =========================================================
 # THEMES
-# - Cloud (Light): light widgets + BLACK text everywhere (including dropdown list)
-# - Midnight (Dark)
-# - Night Mode
 # =========================================================
 THEMES = {
     "Cloud (Light)": {
@@ -22,8 +19,8 @@ THEMES = {
         "input_bg": "#ffffff",
         "widget_bg": "#ffffff",
         "widget_text": "#0f172a",
-        "menu_bg": "#ffffff",          # dropdown menu bg
-        "menu_text": "#0f172a",        # dropdown menu text
+        "menu_bg": "#ffffff",
+        "menu_text": "#0f172a",
         "btn_bg": "#111827",
         "btn_text": "#ffffff",
         "btn_border": "#111827",
@@ -95,7 +92,7 @@ if "messages" not in st.session_state:
 T = THEMES[st.session_state.theme_name]
 
 # -----------------------------
-# CSS (includes dropdown menu fix for Cloud Light)
+# CSS
 # -----------------------------
 st.markdown(
     f"""
@@ -179,20 +176,17 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* ---------- Widgets: Selectbox + Popover button ---------- */
-    /* Selectbox outer container */
+    /* Selectbox */
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
-
-    /* Selected value + icons */
     div[data-testid="stSelectbox"] * {{
         color: var(--widget-text) !important;
     }}
 
-    /* Dropdown menu (the open list) - FIX for Cloud (Light) */
+    /* Dropdown menu */
     div[role="listbox"] {{
         background: var(--menu-bg) !important;
         border: 1px solid var(--border) !important;
@@ -201,8 +195,6 @@ st.markdown(
     div[role="listbox"] * {{
         color: var(--menu-text) !important;
     }}
-
-    /* Each option */
     div[role="option"] {{
         background: transparent !important;
     }}
@@ -235,15 +227,33 @@ st.markdown(
 )
 
 # =========================================================
-# TOP BAR
+# NAVIGATION: Back button helper
 # =========================================================
-top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
+def go_back():
+    """
+    Change this path to your dashboard/home page file.
+    Example: "Home.py" or "pages/0_Dashboard.py"
+    """
+    try:
+        st.switch_page("Home.py")  # <-- EDIT THIS to your real home page
+    except Exception:
+        # fallback (won't navigate, but avoids crash)
+        st.warning("Back page not found. Please set the correct path in go_back().")
 
-with top_left:
+# =========================================================
+# TOP BAR (Back button left + Title middle + Theme right)
+# =========================================================
+top_back, top_title, top_theme = st.columns([0.12, 0.63, 0.25], vertical_alignment="center")
+
+with top_back:
+    if st.button("⬅ Back", use_container_width=True):
+        go_back()
+
+with top_title:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
 
-with top_right:
+with top_theme:
     with st.popover("🎨 Theme ▾", use_container_width=True):
         st.session_state.theme_name = st.selectbox(
             "Theme",
