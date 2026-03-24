@@ -336,20 +336,11 @@ def extract_text_from_website(url: str) -> str:
     joined = "\n".join(texts)
     return clean_text(joined)
 
-# ============================
-# YOUTUBE PART (UPDATED ONLY)
-# ============================
+# =========================================================
+# YOUTUBE (ONLY THIS PART IS MODIFIED)
+# =========================================================
 def get_youtube_video_id(url: str) -> str:
-    """
-    More robust video ID extraction:
-    - supports watch?v=
-    - youtu.be/
-    - /embed/
-    - /shorts/
-    - also handles extra query params
-    """
     url = (url or "").strip()
-
     patterns = [
         r"(?:v=)([a-zA-Z0-9_-]{11})",
         r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -363,19 +354,13 @@ def get_youtube_video_id(url: str) -> str:
     return ""
 
 def extract_text_from_youtube(url: str) -> str:
-    """
-    Fixes:
-    - works across youtube-transcript-api versions
-    - tries get_transcript first, then list_transcripts().fetch()
-    - gives clear errors if transcript is disabled/not available
-    """
     video_id = get_youtube_video_id(url)
     if not video_id:
         raise ValueError("Could not detect a valid YouTube video ID from the link.")
 
     languages = ["en", "en-US", "en-GB"]
 
-    # 1) Newer versions
+    # Try newer API if available
     if hasattr(YouTubeTranscriptApi, "get_transcript"):
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
@@ -386,16 +371,18 @@ def extract_text_from_youtube(url: str) -> str:
         except Exception:
             pass
 
-    # 2) Fallback
+    # Fallback for older versions / other cases
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-
         try:
             t = transcript_list.find_transcript(languages)
         except Exception:
-            # if no English, try any available transcript
-            # (helps if video only has another language)
-            t = transcript_list.find_transcript([tr.language_code for tr in transcript_list])
+            # If no English transcript, try the first available transcript
+            # (This avoids crashing when only another language exists.)
+            available = [tr.language_code for tr in transcript_list]
+            if not available:
+                raise ValueError("No transcripts available for this video.")
+            t = transcript_list.find_transcript([available[0]])
 
         transcript = t.fetch()
         full_text = " ".join(item.get("text", "") for item in transcript)
@@ -404,16 +391,13 @@ def extract_text_from_youtube(url: str) -> str:
         if not full_text:
             raise ValueError("Transcript was found but returned empty text.")
         return full_text
-
     except Exception as e:
-        # common causes: transcripts disabled, none available, region restrictions
         raise ValueError(
-            "Could not load transcript for this video. "
-            "The video may have transcripts disabled or unavailable."
+            "Could not load transcript. The video may have transcripts disabled or unavailable."
         ) from e
-# ============================
-# END YOUTUBE PART
-# ============================
+# =========================================================
+# END YOUTUBE
+# =========================================================
 
 def build_summary_prompt(source_text: str, summary_style: str) -> str:
     if summary_style == "Short Summary":
@@ -503,4 +487,8 @@ def load_source_text(input_type: str, pasted_text: str, url_value: str, pdf_file
 
     if input_type == "Upload PDF":
         if pdf_file is None:
-            raise ValueError("Please
+            raise ValueError("Please upload a PDF file first.")
+        return extract_text_from_pdf(pdf_file)
+
+    if input_type == "Website URL":
+        if not
