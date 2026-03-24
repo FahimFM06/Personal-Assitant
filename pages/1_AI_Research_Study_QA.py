@@ -4,6 +4,10 @@ import streamlit as st
 
 st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
 
+# ============================
+# ============================
+BACK_PAGE = "Home.py"  
+
 # =========================================================
 # THEMES
 # =========================================================
@@ -91,14 +95,7 @@ if "web_search" not in st.session_state:
     st.session_state.web_search = False
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {
-            "role": "assistant",
-            "content": (
-                "Hi! I can help with explanations, writing, coding, and research.\n\n"
-                "If you need **up‑to‑date news**, turn on **Web search** in the right panel — "
-                "I’ll include sources/links in the answer."
-            ),
-        }
+        {"role": "assistant", "content": "Hi! This is a chatbot. Ask me any question."}
     ]
 
 T = THEMES[st.session_state.theme_name]
@@ -132,7 +129,6 @@ st.markdown(
         background: var(--app-bg) !important;
         color: var(--text) !important;
     }}
-
     html, body, [class*="css"] {{
         color: var(--text) !important;
     }}
@@ -142,7 +138,6 @@ st.markdown(
         padding-top: 1rem;
         padding-bottom: 0.5rem;
     }}
-
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
@@ -153,7 +148,6 @@ st.markdown(
         color: var(--title) !important;
         margin: 0 0 0.1rem 0;
     }}
-
     .page-sub {{
         color: var(--sub) !important;
         margin: 0 0 0.8rem 0;
@@ -168,7 +162,6 @@ st.markdown(
         box-shadow: var(--shadow) !important;
         color: var(--text) !important;
     }}
-
     .right-middle {{
         margin-top: 120px;
     }}
@@ -183,7 +176,7 @@ st.markdown(
         color: var(--text) !important;
     }}
 
-    /* Make chat text always visible */
+    /* Chat text */
     div[data-testid="stChatMessage"] * {{
         color: var(--text) !important;
     }}
@@ -206,6 +199,9 @@ st.markdown(
     }}
     div[role="listbox"] * {{
         color: var(--menu-text) !important;
+    }}
+    div[role="option"]:hover {{
+        background: rgba(100, 116, 139, 0.12) !important;
     }}
 
     /* Popover button */
@@ -236,19 +232,17 @@ st.markdown(
 # Helpers
 # =========================================================
 def go_back():
-    """
-    IMPORTANT: change this to your dashboard file.
-    Example: st.switch_page("app.py") or st.switch_page("pages/0_Dashboard.py")
-    """
+    # No warning message (you asked to keep it simple)
     try:
-        st.switch_page("app.py")  # <-- CHANGE THIS PATH
+        st.switch_page(BACK_PAGE)
     except Exception:
-        st.warning("Back page not found. Set the correct file path in go_back().")
+        # silently do nothing if path is wrong
+        pass
 
 def newsapi_search(query: str, max_items: int = 5) -> list[dict]:
     api_key = os.environ.get("NEWSAPI_KEY")
     if not api_key:
-        return [{"title": "NEWSAPI_KEY missing (set it in environment variables).", "source": "system", "url": "", "publishedAt": ""}]
+        return []
 
     url = "https://newsapi.org/v2/everything"
     params = {
@@ -273,18 +267,18 @@ def newsapi_search(query: str, max_items: int = 5) -> list[dict]:
                 "publishedAt": a.get("publishedAt", ""),
             })
         return out
-    except Exception as e:
-        return [{"title": f"News search error: {e}", "source": "system", "url": "", "publishedAt": ""}]
+    except Exception:
+        return []
 
 def groq_reply(messages, model_id: str) -> str:
     try:
         from groq import Groq
     except Exception:
-        return "Groq package not installed. Run: pip install groq"
+        return "Install Groq: pip install groq"
 
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        return "GROQ_API_KEY is missing. Set it in your environment variables."
+        return "Set GROQ_API_KEY in environment variables."
 
     try:
         client = Groq(api_key=api_key)
@@ -295,7 +289,7 @@ def groq_reply(messages, model_id: str) -> str:
         )
         return resp.choices[0].message.content
     except Exception as e:
-        return f"Error calling Groq: {e}"
+        return f"Groq error: {e}"
 
 # =========================================================
 # TOP BAR (Back left + Title + Theme right)
@@ -308,7 +302,7 @@ with top_back:
 
 with top_title:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Ask anything — and enable Web search for up‑to‑date answers with sources.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">This is a chatbot. Ask any question.</div>', unsafe_allow_html=True)
 
 with top_theme:
     with st.popover("🎨 Theme ▾", use_container_width=True):
@@ -339,28 +333,17 @@ with right_col:
         index=MODELS_UI.index(st.session_state.model_name),
         label_visibility="collapsed",
     )
-    st.caption("Groq models only")
 
     st.divider()
 
-    st.session_state.web_search = st.toggle("🔎 Web search (recent news/info)", value=st.session_state.web_search)
-    st.caption("Uses NewsAPI to pull recent articles and add sources.")
+    st.session_state.web_search = st.toggle("🔎 Web search", value=st.session_state.web_search)
 
     st.divider()
 
     a, b = st.columns(2)
     with a:
         if st.button("🆕 New chat", use_container_width=True):
-            st.session_state.messages = [
-                {
-                    "role": "assistant",
-                    "content": (
-                        "Hi! What can I help you with today?\n\n"
-                        "- For **latest news**, enable **Web search**.\n"
-                        "- For summaries, writing, coding, and explanations, just ask."
-                    ),
-                }
-            ]
+            st.session_state.messages = [{"role": "assistant", "content": "Hi! This is a chatbot. Ask me any question."}]
             st.rerun()
     with b:
         if st.button("🗑️ Delete last", use_container_width=True):
@@ -385,26 +368,22 @@ if user_text:
 
     model_id = MODEL_MAP.get(st.session_state.model_name, "llama-3.3-70b-versatile")
 
-    # Web search context (optional)
     web_context = ""
     if st.session_state.web_search:
         articles = newsapi_search(user_text, max_items=5)
-        lines = []
-        for i, a in enumerate(articles, 1):
-            if a.get("url"):
-                lines.append(f"{i}. {a['title']} — {a['source']} ({a['publishedAt']})\n{a['url']}")
-            else:
-                lines.append(f"{i}. {a['title']}")
-        web_context = "\n\nRECENT NEWS RESULTS (use these as sources):\n" + "\n\n".join(lines)
+        if articles:
+            lines = []
+            for i, a in enumerate(articles, 1):
+                if a.get("url"):
+                    lines.append(f"{i}. {a['title']} — {a['source']}\n{a['url']}")
+            if lines:
+                web_context = "\n\nSOURCES:\n" + "\n\n".join(lines)
 
     system_prompt = (
-        "You are a helpful assistant.\n"
-        "If RECENT NEWS RESULTS are provided, use them to answer with up-to-date info.\n"
-        "When using news results, include the relevant URLs in your final answer.\n"
-        "If no news results are provided, answer normally."
+        "You are a helpful assistant. "
+        "If SOURCES are provided, use them and include the URLs you used."
     )
 
-    # Build messages for the model
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages += st.session_state.messages[:-1]
     api_messages.append({"role": "user", "content": user_text + web_context})
