@@ -1,4 +1,5 @@
 import os
+import requests
 import streamlit as st
 
 st.set_page_config(page_title="Chat Assistant", page_icon="💬", layout="wide")
@@ -87,7 +88,9 @@ if "theme_name" not in st.session_state:
 if "model_name" not in st.session_state:
     st.session_state.model_name = MODELS_UI[0]
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
+    st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me anything. Turn on Web search for recent news."}]
+if "web_search" not in st.session_state:
+    st.session_state.web_search = False
 
 T = THEMES[st.session_state.theme_name]
 
@@ -120,34 +123,28 @@ st.markdown(
         background: var(--app-bg) !important;
         color: var(--text) !important;
     }}
-
     html, body, [class*="css"] {{
         color: var(--text) !important;
     }}
-
     .main .block-container {{
         max-width: 1300px;
         padding-top: 1rem;
         padding-bottom: 0.5rem;
     }}
-
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
-
     .page-title {{
         font-size: 2.0rem;
         font-weight: 800;
         color: var(--title) !important;
         margin: 0 0 0.1rem 0;
     }}
-
     .page-sub {{
         color: var(--sub) !important;
         margin: 0 0 0.8rem 0;
         font-size: 0.95rem;
     }}
-
     .right-panel {{
         background: var(--panel-bg) !important;
         border: 1px solid var(--border) !important;
@@ -156,12 +153,9 @@ st.markdown(
         box-shadow: var(--shadow) !important;
         color: var(--text) !important;
     }}
-
     .right-middle {{
-        margin-top: 140px;
+        margin-top: 120px;
     }}
-
-    /* Chat input */
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
         border: 1px solid var(--border) !important;
@@ -170,13 +164,9 @@ st.markdown(
     div[data-testid="stChatInput"] textarea {{
         color: var(--text) !important;
     }}
-
-    /* Make chat text always visible */
     div[data-testid="stChatMessage"] * {{
         color: var(--text) !important;
     }}
-
-    /* Selectbox */
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
         border: 1px solid var(--border) !important;
@@ -185,8 +175,6 @@ st.markdown(
     div[data-testid="stSelectbox"] * {{
         color: var(--widget-text) !important;
     }}
-
-    /* Dropdown menu */
     div[role="listbox"] {{
         background: var(--menu-bg) !important;
         border: 1px solid var(--border) !important;
@@ -195,29 +183,18 @@ st.markdown(
     div[role="listbox"] * {{
         color: var(--menu-text) !important;
     }}
-    div[role="option"] {{
-        background: transparent !important;
-    }}
-    div[role="option"]:hover {{
-        background: rgba(100, 116, 139, 0.12) !important;
-    }}
-
-    /* Popover button */
     button[data-testid="stPopoverButton"] {{
         background: var(--widget-bg) !important;
         color: var(--widget-text) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
-
-    /* Buttons */
     .stButton > button {{
         background: var(--btn-bg) !important;
         color: var(--btn-text) !important;
         border: 1px solid var(--btn-border) !important;
         border-radius: 12px !important;
     }}
-
     .stCaption {{
         color: var(--muted) !important;
     }}
@@ -227,33 +204,73 @@ st.markdown(
 )
 
 # =========================================================
-# NAVIGATION: Back button helper
+# Helpers
 # =========================================================
-def go_back():
+def newsapi_search(query: str, max_items: int = 5) -> list[dict]:
     """
-    Change this path to your dashboard/home page file.
-    Example: "Home.py" or "pages/0_Dashboard.py"
+    Returns list of {"title","source","url","publishedAt"} from NewsAPI.
     """
+    api_key = os.environ.get("NEWSAPI_KEY")
+    if not api_key:
+        return [{"title": "NEWSAPI_KEY missing", "source": "system", "url": "", "publishedAt": ""}]
+
+    url = "https://newsapi.org/v2/everything"
+    params = {
+        "q": query,
+        "language": "en",
+        "sortBy": "publishedAt",
+        "pageSize": max_items,
+        "apiKey": api_key,
+    }
+
     try:
-        st.switch_page("Home.py")  # <-- EDIT THIS to your real home page
+        r = requests.get(url, params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        articles = data.get("articles", [])[:max_items]
+        out = []
+        for a in articles:
+            out.append({
+                "title": a.get("title", ""),
+                "source": (a.get("source") or {}).get("name", ""),
+                "url": a.get("url", ""),
+                "publishedAt": a.get("publishedAt", ""),
+            })
+        return out
+    except Exception as e:
+        return [{"title": f"News search error: {e}", "source": "system", "url": "", "publishedAt": ""}]
+
+def groq_reply(messages, model_id: str) -> str:
+    try:
+        from groq import Groq
     except Exception:
-        # fallback (won't navigate, but avoids crash)
-        st.warning("Back page not found. Please set the correct path in go_back().")
+        return "Groq package not installed. Run: pip install groq"
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return "GROQ_API_KEY is missing. Set it in your environment variables."
+
+    try:
+        client = Groq(api_key=api_key)
+        resp = client.chat.completions.create(
+            model=model_id,
+            messages=messages,
+            temperature=0.35,
+        )
+        return resp.choices[0].message.content
+    except Exception as e:
+        return f"Error calling Groq: {e}"
 
 # =========================================================
-# TOP BAR (Back button left + Title middle + Theme right)
+# TOP BAR
 # =========================================================
-top_back, top_title, top_theme = st.columns([0.12, 0.63, 0.25], vertical_alignment="center")
+top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
 
-with top_back:
-    if st.button("⬅ Back", use_container_width=True):
-        go_back()
-
-with top_title:
+with top_left:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Ask anything. Your chat stays in this session.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">Ask anything. Turn on Web search for recent news.</div>', unsafe_allow_html=True)
 
-with top_theme:
+with top_right:
     with st.popover("🎨 Theme ▾", use_container_width=True):
         st.session_state.theme_name = st.selectbox(
             "Theme",
@@ -286,10 +303,15 @@ with right_col:
 
     st.divider()
 
+    st.session_state.web_search = st.toggle("🔎 Web search (recent info)", value=st.session_state.web_search)
+    st.caption("Uses NewsAPI for recent articles when enabled.")
+
+    st.divider()
+
     a, b = st.columns(2)
     with a:
         if st.button("🆕 New chat", use_container_width=True):
-            st.session_state.messages = [{"role": "assistant", "content": "Hello, how can I help you today?"}]
+            st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me anything. Turn on Web search for recent news."}]
             st.rerun()
     with b:
         if st.button("🗑️ Delete last", use_container_width=True):
@@ -309,35 +331,28 @@ with right_col:
 # =========================================================
 user_text = st.chat_input("Type your message...")
 
-# =========================================================
-# REAL AI RESPONSE (Groq)
-# =========================================================
-def groq_reply(messages, model_id: str) -> str:
-    try:
-        from groq import Groq
-    except Exception:
-        return "Groq package not installed. Run: pip install groq"
-
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return "GROQ_API_KEY is missing. Set it in your environment variables."
-
-    try:
-        client = Groq(api_key=api_key)
-        resp = client.chat.completions.create(
-            model=model_id,
-            messages=messages,
-            temperature=0.4,
-        )
-        return resp.choices[0].message.content
-    except Exception as e:
-        return f"Error calling Groq: {e}"
-
 if user_text:
     st.session_state.messages.append({"role": "user", "content": user_text})
 
-    api_messages = [{"role": "system", "content": "You are a helpful assistant."}] + st.session_state.messages
     model_id = MODEL_MAP.get(st.session_state.model_name, "llama-3.3-70b-versatile")
+
+    # If web search enabled, fetch recent articles and provide to the model as context
+    web_context = ""
+    if st.session_state.web_search:
+        articles = newsapi_search(user_text, max_items=5)
+        lines = []
+        for i, a in enumerate(articles, 1):
+            lines.append(f"{i}. {a['title']} ({a['source']}) {a['publishedAt']}\n{a['url']}")
+        web_context = "\n\nRECENT NEWS RESULTS:\n" + "\n\n".join(lines)
+
+    system_prompt = (
+        "You are a helpful assistant. "
+        "If RECENT NEWS RESULTS are provided, use them to answer with up-to-date info and include the URLs you used."
+    )
+
+    api_messages = [{"role": "system", "content": system_prompt}]
+    api_messages += st.session_state.messages[:-1]  # previous messages
+    api_messages.append({"role": "user", "content": user_text + web_context})
 
     answer = groq_reply(api_messages, model_id)
     st.session_state.messages.append({"role": "assistant", "content": answer})
