@@ -133,7 +133,7 @@ if "source_url" not in st.session_state:
 
 if "qa_messages_doc" not in st.session_state:
     st.session_state.qa_messages_doc = [
-        {"role": "assistant", "content": "Hi! Upload a PDF or provide text/link, then ask questions about it."}
+        {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
     ]
 
 T = THEMES[st.session_state.theme_name]
@@ -168,28 +168,34 @@ st.markdown(
         background: var(--app-bg) !important;
         color: var(--text) !important;
     }}
+
     html, body, [class*="css"] {{
         color: var(--text) !important;
     }}
+
     .main .block-container {{
         max-width: 1300px;
         padding-top: 1rem;
         padding-bottom: 0.5rem;
     }}
+
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
+
     .page-title {{
         font-size: 2.0rem;
         font-weight: 800;
         color: var(--title) !important;
         margin: 0 0 0.1rem 0;
     }}
+
     .page-sub {{
         color: var(--sub) !important;
         margin: 0 0 0.8rem 0;
         font-size: 0.95rem;
     }}
+
     .right-panel {{
         background: var(--panel-bg) !important;
         border: 1px solid var(--border) !important;
@@ -198,9 +204,11 @@ st.markdown(
         box-shadow: var(--shadow) !important;
         color: var(--text) !important;
     }}
+
     .right-middle {{
         margin-top: 140px;
     }}
+
     .content-card {{
         background: var(--card-bg) !important;
         border: 1px solid var(--border) !important;
@@ -210,6 +218,7 @@ st.markdown(
         color: var(--text) !important;
         margin-bottom: 14px;
     }}
+
     .stTextArea textarea,
     .stTextInput input {{
         background: var(--input-bg) !important;
@@ -217,49 +226,74 @@ st.markdown(
         border: 1px solid var(--border) !important;
         border-radius: 14px !important;
     }}
+
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
+
     div[data-testid="stSelectbox"] * {{
         color: var(--widget-text) !important;
     }}
+
     div[role="listbox"] {{
         background: var(--menu-bg) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
+
     div[role="listbox"] * {{
         color: var(--menu-text) !important;
     }}
+
+    div[role="option"] {{
+        background: transparent !important;
+    }}
+
+    div[role="option"]:hover {{
+        background: rgba(100, 116, 139, 0.12) !important;
+    }}
+
     button[data-testid="stPopoverButton"] {{
         background: var(--widget-bg) !important;
         color: var(--widget-text) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
-    .stButton > button,
+
+    .stButton > button {{
+        background: var(--btn-bg) !important;
+        color: var(--btn-text) !important;
+        border: 1px solid var(--btn-border) !important;
+        border-radius: 12px !important;
+    }}
+
     .stDownloadButton > button {{
         background: var(--btn-bg) !important;
         color: var(--btn-text) !important;
         border: 1px solid var(--btn-border) !important;
         border-radius: 12px !important;
     }}
+
     .stSlider * {{
         color: var(--text) !important;
     }}
+
     div[data-testid="stChatMessage"] * {{
         color: var(--text) !important;
     }}
+
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
         border: 1px solid var(--border) !important;
         background: var(--input-bg) !important;
     }}
+
     div[data-testid="stChatInput"] textarea {{
         color: var(--text) !important;
     }}
+
     .stCaption {{
         color: var(--muted) !important;
     }}
@@ -272,7 +306,6 @@ st.markdown(
 # HELPERS
 # =========================================================
 def go_back():
-    # change if your home file is different
     st.switch_page("Home.py")
 
 def extract_text_from_pdf(uploaded_file) -> str:
@@ -293,18 +326,35 @@ def extract_text_from_website(url: str) -> str:
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers, timeout=25)
     response.raise_for_status()
+
     soup = BeautifulSoup(response.text, "html.parser")
+
     for tag in soup(["script", "style", "noscript", "header", "footer", "svg"]):
         tag.decompose()
-    texts = soup.stripped_strings
-    return clean_text("\n".join(texts))
 
+    texts = soup.stripped_strings
+    joined = "\n".join(texts)
+    return clean_text(joined)
+
+# ============================
+# YOUTUBE PART (UPDATED ONLY)
+# ============================
 def get_youtube_video_id(url: str) -> str:
+    """
+    More robust video ID extraction:
+    - supports watch?v=
+    - youtu.be/
+    - /embed/
+    - /shorts/
+    - also handles extra query params
+    """
+    url = (url or "").strip()
+
     patterns = [
-        r"v=([a-zA-Z0-9_-]{11})",
-        r"youtu\.be/([a-zA-Z0-9_-]{11})",
-        r"youtube\.com/embed/([a-zA-Z0-9_-]{11})",
-        r"youtube\.com/shorts/([a-zA-Z0-9_-]{11})",
+        r"(?:v=)([a-zA-Z0-9_-]{11})",
+        r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
+        r"(?:youtube\.com/embed/)([a-zA-Z0-9_-]{11})",
+        r"(?:youtube\.com/shorts/)([a-zA-Z0-9_-]{11})",
     ]
     for pattern in patterns:
         match = re.search(pattern, url)
@@ -314,32 +364,56 @@ def get_youtube_video_id(url: str) -> str:
 
 def extract_text_from_youtube(url: str) -> str:
     """
-    No API key needed (free).
-    Works only if the video has transcripts available.
+    Fixes:
+    - works across youtube-transcript-api versions
+    - tries get_transcript first, then list_transcripts().fetch()
+    - gives clear errors if transcript is disabled/not available
     """
     video_id = get_youtube_video_id(url)
     if not video_id:
         raise ValueError("Could not detect a valid YouTube video ID from the link.")
 
-    # Try 'get_transcript' first (newer versions)
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "en-US", "en-GB"])
-    except Exception:
-        # Fallback: list transcripts and fetch
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+    languages = ["en", "en-US", "en-GB"]
+
+    # 1) Newer versions
+    if hasattr(YouTubeTranscriptApi, "get_transcript"):
         try:
-            transcript_obj = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
+            full_text = " ".join(item.get("text", "") for item in transcript)
+            full_text = clean_text(full_text)
+            if full_text:
+                return full_text
         except Exception:
-            transcript_obj = transcript_list.find_manually_created_transcript(["en", "en-US", "en-GB"])
-        transcript = transcript_obj.fetch()
+            pass
 
-    full_text = " ".join([item.get("text", "") for item in transcript])
-    full_text = clean_text(full_text)
+    # 2) Fallback
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
 
-    if not full_text:
-        raise ValueError("Transcript was found but returned empty text.")
+        try:
+            t = transcript_list.find_transcript(languages)
+        except Exception:
+            # if no English, try any available transcript
+            # (helps if video only has another language)
+            t = transcript_list.find_transcript([tr.language_code for tr in transcript_list])
 
-    return full_text
+        transcript = t.fetch()
+        full_text = " ".join(item.get("text", "") for item in transcript)
+        full_text = clean_text(full_text)
+
+        if not full_text:
+            raise ValueError("Transcript was found but returned empty text.")
+        return full_text
+
+    except Exception as e:
+        # common causes: transcripts disabled, none available, region restrictions
+        raise ValueError(
+            "Could not load transcript for this video. "
+            "The video may have transcripts disabled or unavailable."
+        ) from e
+# ============================
+# END YOUTUBE PART
+# ============================
 
 def build_summary_prompt(source_text: str, summary_style: str) -> str:
     if summary_style == "Short Summary":
@@ -429,35 +503,4 @@ def load_source_text(input_type: str, pasted_text: str, url_value: str, pdf_file
 
     if input_type == "Upload PDF":
         if pdf_file is None:
-            raise ValueError("Please upload a PDF file first.")
-        return extract_text_from_pdf(pdf_file)
-
-    if input_type == "Website URL":
-        if not url_value.strip():
-            raise ValueError("Please enter a website URL first.")
-        return extract_text_from_website(url_value.strip())
-
-    if input_type == "YouTube URL":
-        if not url_value.strip():
-            raise ValueError("Please enter a YouTube URL first.")
-        return extract_text_from_youtube(url_value.strip())
-
-    return ""
-
-# =========================================================
-# TOP BAR
-# =========================================================
-top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
-
-with top_left:
-    back_col, title_col = st.columns([0.16, 0.84], vertical_alignment="center")
-
-    with back_col:
-        if st.button("⬅ Back", use_container_width=True):
-            go_back()
-
-    with title_col:
-        st.markdown('<div class="page-title">Research Paper Summarizer</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="page-sub">Summarize and ask questions from PDF, website, YouTube link, or pasted text.</div>',
-            unsafe_allow
+            raise ValueError("Please
