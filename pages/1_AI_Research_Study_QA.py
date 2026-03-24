@@ -87,10 +87,19 @@ if "theme_name" not in st.session_state:
     st.session_state.theme_name = "Midnight (Dark)"
 if "model_name" not in st.session_state:
     st.session_state.model_name = MODELS_UI[0]
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me anything. Turn on Web search for recent news."}]
 if "web_search" not in st.session_state:
     st.session_state.web_search = False
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hi! I can help with explanations, writing, coding, and research.\n\n"
+                "If you need **up‑to‑date news**, turn on **Web search** in the right panel — "
+                "I’ll include sources/links in the answer."
+            ),
+        }
+    ]
 
 T = THEMES[st.session_state.theme_name]
 
@@ -123,28 +132,34 @@ st.markdown(
         background: var(--app-bg) !important;
         color: var(--text) !important;
     }}
+
     html, body, [class*="css"] {{
         color: var(--text) !important;
     }}
+
     .main .block-container {{
         max-width: 1300px;
         padding-top: 1rem;
         padding-bottom: 0.5rem;
     }}
+
     header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
+
     .page-title {{
         font-size: 2.0rem;
         font-weight: 800;
         color: var(--title) !important;
         margin: 0 0 0.1rem 0;
     }}
+
     .page-sub {{
         color: var(--sub) !important;
         margin: 0 0 0.8rem 0;
         font-size: 0.95rem;
     }}
+
     .right-panel {{
         background: var(--panel-bg) !important;
         border: 1px solid var(--border) !important;
@@ -153,9 +168,12 @@ st.markdown(
         box-shadow: var(--shadow) !important;
         color: var(--text) !important;
     }}
+
     .right-middle {{
         margin-top: 120px;
     }}
+
+    /* Chat input */
     div[data-testid="stChatInput"] > div {{
         border-radius: 14px !important;
         border: 1px solid var(--border) !important;
@@ -164,9 +182,13 @@ st.markdown(
     div[data-testid="stChatInput"] textarea {{
         color: var(--text) !important;
     }}
+
+    /* Make chat text always visible */
     div[data-testid="stChatMessage"] * {{
         color: var(--text) !important;
     }}
+
+    /* Selectbox */
     div[data-testid="stSelectbox"] > div {{
         background: var(--widget-bg) !important;
         border: 1px solid var(--border) !important;
@@ -175,6 +197,8 @@ st.markdown(
     div[data-testid="stSelectbox"] * {{
         color: var(--widget-text) !important;
     }}
+
+    /* Dropdown menu */
     div[role="listbox"] {{
         background: var(--menu-bg) !important;
         border: 1px solid var(--border) !important;
@@ -183,18 +207,23 @@ st.markdown(
     div[role="listbox"] * {{
         color: var(--menu-text) !important;
     }}
+
+    /* Popover button */
     button[data-testid="stPopoverButton"] {{
         background: var(--widget-bg) !important;
         color: var(--widget-text) !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }}
+
+    /* Buttons */
     .stButton > button {{
         background: var(--btn-bg) !important;
         color: var(--btn-text) !important;
         border: 1px solid var(--btn-border) !important;
         border-radius: 12px !important;
     }}
+
     .stCaption {{
         color: var(--muted) !important;
     }}
@@ -206,13 +235,20 @@ st.markdown(
 # =========================================================
 # Helpers
 # =========================================================
+def go_back():
+    """
+    IMPORTANT: change this to your dashboard file.
+    Example: st.switch_page("app.py") or st.switch_page("pages/0_Dashboard.py")
+    """
+    try:
+        st.switch_page("app.py")  # <-- CHANGE THIS PATH
+    except Exception:
+        st.warning("Back page not found. Set the correct file path in go_back().")
+
 def newsapi_search(query: str, max_items: int = 5) -> list[dict]:
-    """
-    Returns list of {"title","source","url","publishedAt"} from NewsAPI.
-    """
     api_key = os.environ.get("NEWSAPI_KEY")
     if not api_key:
-        return [{"title": "NEWSAPI_KEY missing", "source": "system", "url": "", "publishedAt": ""}]
+        return [{"title": "NEWSAPI_KEY missing (set it in environment variables).", "source": "system", "url": "", "publishedAt": ""}]
 
     url = "https://newsapi.org/v2/everything"
     params = {
@@ -262,15 +298,19 @@ def groq_reply(messages, model_id: str) -> str:
         return f"Error calling Groq: {e}"
 
 # =========================================================
-# TOP BAR
+# TOP BAR (Back left + Title + Theme right)
 # =========================================================
-top_left, top_right = st.columns([0.75, 0.25], vertical_alignment="center")
+top_back, top_title, top_theme = st.columns([0.12, 0.63, 0.25], vertical_alignment="center")
 
-with top_left:
+with top_back:
+    if st.button("⬅ Back", use_container_width=True):
+        go_back()
+
+with top_title:
     st.markdown('<div class="page-title">Chat</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Ask anything. Turn on Web search for recent news.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">Ask anything — and enable Web search for up‑to‑date answers with sources.</div>', unsafe_allow_html=True)
 
-with top_right:
+with top_theme:
     with st.popover("🎨 Theme ▾", use_container_width=True):
         st.session_state.theme_name = st.selectbox(
             "Theme",
@@ -303,15 +343,24 @@ with right_col:
 
     st.divider()
 
-    st.session_state.web_search = st.toggle("🔎 Web search (recent info)", value=st.session_state.web_search)
-    st.caption("Uses NewsAPI for recent articles when enabled.")
+    st.session_state.web_search = st.toggle("🔎 Web search (recent news/info)", value=st.session_state.web_search)
+    st.caption("Uses NewsAPI to pull recent articles and add sources.")
 
     st.divider()
 
     a, b = st.columns(2)
     with a:
         if st.button("🆕 New chat", use_container_width=True):
-            st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me anything. Turn on Web search for recent news."}]
+            st.session_state.messages = [
+                {
+                    "role": "assistant",
+                    "content": (
+                        "Hi! What can I help you with today?\n\n"
+                        "- For **latest news**, enable **Web search**.\n"
+                        "- For summaries, writing, coding, and explanations, just ask."
+                    ),
+                }
+            ]
             st.rerun()
     with b:
         if st.button("🗑️ Delete last", use_container_width=True):
@@ -336,22 +385,28 @@ if user_text:
 
     model_id = MODEL_MAP.get(st.session_state.model_name, "llama-3.3-70b-versatile")
 
-    # If web search enabled, fetch recent articles and provide to the model as context
+    # Web search context (optional)
     web_context = ""
     if st.session_state.web_search:
         articles = newsapi_search(user_text, max_items=5)
         lines = []
         for i, a in enumerate(articles, 1):
-            lines.append(f"{i}. {a['title']} ({a['source']}) {a['publishedAt']}\n{a['url']}")
-        web_context = "\n\nRECENT NEWS RESULTS:\n" + "\n\n".join(lines)
+            if a.get("url"):
+                lines.append(f"{i}. {a['title']} — {a['source']} ({a['publishedAt']})\n{a['url']}")
+            else:
+                lines.append(f"{i}. {a['title']}")
+        web_context = "\n\nRECENT NEWS RESULTS (use these as sources):\n" + "\n\n".join(lines)
 
     system_prompt = (
-        "You are a helpful assistant. "
-        "If RECENT NEWS RESULTS are provided, use them to answer with up-to-date info and include the URLs you used."
+        "You are a helpful assistant.\n"
+        "If RECENT NEWS RESULTS are provided, use them to answer with up-to-date info.\n"
+        "When using news results, include the relevant URLs in your final answer.\n"
+        "If no news results are provided, answer normally."
     )
 
+    # Build messages for the model
     api_messages = [{"role": "system", "content": system_prompt}]
-    api_messages += st.session_state.messages[:-1]  # previous messages
+    api_messages += st.session_state.messages[:-1]
     api_messages.append({"role": "user", "content": user_text + web_context})
 
     answer = groq_reply(api_messages, model_id)
