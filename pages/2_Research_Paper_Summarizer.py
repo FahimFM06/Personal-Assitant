@@ -6,6 +6,13 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 from youtube_transcript_api import YouTubeTranscriptApi
 
+# Optional proxy support for YouTube transcript access
+try:
+    from youtube_transcript_api.proxies import WebshareProxyConfig, GenericProxyConfig
+except Exception:
+    WebshareProxyConfig = None
+    GenericProxyConfig = None
+
 st.set_page_config(page_title="Research Paper Summarizer", page_icon="📄", layout="wide")
 
 # =========================================================
@@ -135,6 +142,9 @@ if "qa_messages_doc" not in st.session_state:
     st.session_state.qa_messages_doc = [
         {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
     ]
+
+if "youtube_status_message" not in st.session_state:
+    st.session_state.youtube_status_message = ""
 
 T = THEMES[st.session_state.theme_name]
 
@@ -331,7 +341,6 @@ def extract_text_from_website(url: str) -> str:
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
-
     for tag in soup(["script", "style", "noscript", "header", "footer", "svg"]):
         tag.decompose()
 
@@ -354,30 +363,82 @@ def get_youtube_video_id(url: str) -> str:
     return ""
 
 
+def build_youtube_api():
+    """
+    Build YouTubeTranscriptApi with optional proxy support.
+    Priority:
+    1. Webshare rotating residential proxy
+    2. Generic HTTP/HTTPS proxy
+    3. Direct access (free, but cloud IPs often get blocked)
+    """
+    # Webshare rotating residential proxy
+    ws_user = os.environ.get("WEBSHARE_PROXY_USERNAME") or st.secrets.get("WEBSHARE_PROXY_USERNAME", "")
+    ws_pass = os.environ.get("WEBSHARE_PROXY_PASSWORD") or st.secrets.get("WEBSHARE_PROXY_PASSWORD", "")
+    ws_locations_raw = os.environ.get("WEBSHARE_PROXY_LOCATIONS") or st.secrets.get("WEBSHARE_PROXY_LOCATIONS", "")
+
+    if ws_user and ws_pass and WebshareProxyConfig is not None:
+        locations = [x.strip() for x in ws_locations_raw.split(",") if x.strip()] if ws_locations_raw else None
+        if locations:
+            return YouTubeTranscriptApi(
+                proxy_config=WebshareProxyConfig(
+                    proxy_username=ws_user,
+                    proxy_password=ws_pass,
+                    filter_ip_locations=locations,
+                )
+            )
+        return YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=ws_user,
+                proxy_password=ws_pass,
+            )
+        )
+
+    # Generic proxy
+    http_proxy = os.environ.get("YTA_HTTP_PROXY") or st.secrets.get("YTA_HTTP_PROXY", "")
+    https_proxy = os.environ.get("YTA_HTTPS_PROXY") or st.secrets.get("YTA_HTTPS_PROXY", "")
+    if (http_proxy or https_proxy) and GenericProxyConfig is not None:
+        return YouTubeTranscriptApi(
+            proxy_config=GenericProxyConfig(
+                http_url=http_proxy or None,
+                https_url=https_proxy or None,
+            )
+        )
+
+    # Free direct access
+    return YouTubeTranscriptApi()
+
+
 def extract_text_from_youtube(url: str) -> str:
     """
-    Free method using youtube-transcript-api.
-    Works only when the video has captions/transcript available.
+    Free direct transcript fetch when possible.
+    If running on Streamlit Cloud, YouTube may block cloud IPs.
+    Optional proxy secrets are supported for a reliable workaround.
     """
     video_id = get_youtube_video_id(url)
     if not video_id:
         raise ValueError("Could not detect a valid YouTube video ID from the link.")
 
     try:
-        ytt_api = YouTubeTranscriptApi()
+        ytt_api = build_youtube_api()
         fetched_transcript = ytt_api.fetch(video_id)
-        full_text = " ".join(snippet.text for snippet in fetched_transcript)
+        # current library returns iterable transcript snippets with .text
+        full_text = " ".join(getattr(snippet, "text", "") for snippet in fetched_transcript)
+        full_text = clean_text(full_text)
+
+        if not full_text:
+            raise ValueError("Transcript was fetched but no usable text was found.")
+
+        st.session_state.youtube_status_message = "Transcript loaded successfully."
+        return full_text
+
     except Exception as e:
+        st.session_state.youtube_status_message = ""
         raise ValueError(
-            f"Could not fetch YouTube transcript. This video may not have captions enabled, "
-            f"or YouTube may be blocking transcript access temporarily. Details: {e}"
+            "Could not fetch YouTube transcript. "
+            "This usually means the video has no captions, or YouTube is blocking cloud requests. "
+            "For Streamlit Cloud, add Webshare proxy secrets or paste the transcript manually.\n\n"
+            f"Details: {e}"
         )
-
-    full_text = clean_text(full_text)
-    if not full_text:
-        raise ValueError("Transcript was fetched but no usable text was found.")
-
-    return full_text
 
 
 def build_summary_prompt(source_text: str, summary_style: str) -> str:
@@ -571,6 +632,16 @@ with left_col:
             )
             st.session_state.source_url = url_value
 
+            st.caption("Direct transcript fetch is free, but Streamlit Cloud IPs are often blocked by YouTube.")
+            with st.expander("If YouTube is blocked, use one of these options"):
+                st.markdown(
+                    """
+1. **Best option:** add Webshare rotating residential proxy secrets  
+2. **Simple fallback:** copy the transcript and use **Paste text**  
+3. **Local testing:** run the app locally instead of Streamlit Cloud
+                    """
+                )
+
         btn1, btn2, btn3 = st.columns(3)
 
         with btn1:
@@ -604,6 +675,7 @@ with left_col:
                         st.session_state.paper_text = source_text
                         st.success("Content loaded successfully.")
                         st.rerun()
+
                 except Exception as e:
                     st.error(f"Could not load content: {e}")
 
@@ -637,10 +709,14 @@ with left_col:
                 st.session_state.paper_text = ""
                 st.session_state.source_url = ""
                 st.session_state.summary_output = ""
+                st.session_state.youtube_status_message = ""
                 st.session_state.qa_messages_doc = [
                     {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
                 ]
                 st.rerun()
+
+        if st.session_state.youtube_status_message:
+            st.success(st.session_state.youtube_status_message)
 
         if st.session_state.paper_text:
             st.markdown("**Loaded Content Preview**")
@@ -758,6 +834,7 @@ with right_col:
             st.session_state.paper_text = ""
             st.session_state.source_url = ""
             st.session_state.summary_output = ""
+            st.session_state.youtube_status_message = ""
             st.session_state.qa_messages_doc = [
                 {"role": "assistant", "content": "Hello, upload a PDF or provide text/link, and then ask questions about it."}
             ]
