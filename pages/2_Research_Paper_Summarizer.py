@@ -326,9 +326,7 @@ def clean_text(text: str) -> str:
 
 
 def extract_text_from_website(url: str) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers, timeout=25)
     response.raise_for_status()
 
@@ -357,13 +355,29 @@ def get_youtube_video_id(url: str) -> str:
 
 
 def extract_text_from_youtube(url: str) -> str:
+    """
+    Free method using youtube-transcript-api.
+    Works only when the video has captions/transcript available.
+    """
     video_id = get_youtube_video_id(url)
     if not video_id:
         raise ValueError("Could not detect a valid YouTube video ID from the link.")
 
-    transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    full_text = " ".join([item["text"] for item in transcript])
-    return clean_text(full_text)
+    try:
+        ytt_api = YouTubeTranscriptApi()
+        fetched_transcript = ytt_api.fetch(video_id)
+        full_text = " ".join(snippet.text for snippet in fetched_transcript)
+    except Exception as e:
+        raise ValueError(
+            f"Could not fetch YouTube transcript. This video may not have captions enabled, "
+            f"or YouTube may be blocking transcript access temporarily. Details: {e}"
+        )
+
+    full_text = clean_text(full_text)
+    if not full_text:
+        raise ValueError("Transcript was fetched but no usable text was found.")
+
+    return full_text
 
 
 def build_summary_prompt(source_text: str, summary_style: str) -> str:
