@@ -2,7 +2,7 @@ import streamlit as st
 import base64
 from pathlib import Path
 
-st.set_page_config(page_title="AI Dashboard", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="IntelliQ", page_icon="🤖", layout="wide")
 
 # =========================================================
 # THEMES
@@ -247,7 +247,7 @@ st.markdown(
 header_left, header_right = st.columns([0.78, 0.22], vertical_alignment="center")
 
 with header_left:
-    st.markdown('<div class="title-text">AI Research & Productivity Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-text">IntelliQ</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-text">Select one tool from the dashboard</div>', unsafe_allow_html=True)
 
 with header_right:
