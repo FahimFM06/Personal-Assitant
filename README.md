@@ -1,4 +1,4 @@
-# AI Research & Productivity Dashboard
+# IntelliQ
 
 A multi-page **Streamlit** application that combines several practical AI tools into one clean dashboard.  
 This project is designed for **students, researchers, and daily productivity use**. It includes tools for:
